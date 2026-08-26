@@ -1,0 +1,16 @@
+# Core Graph Engine
+langgraph>=0.2.0
+langchain-core>=0.3.0
+
+# Model Provider Adapters
+langchain-ollama>=0.2.0
+langchain-openai>=0.2.0
+
+# Validation & Networking
+pydantic>=2.7.0
+httpx>=0.27.0
+pyyaml>=6.0
+
+# Terminal UI & Observability
+rich>=13.7.0
+textual>=0.70.0

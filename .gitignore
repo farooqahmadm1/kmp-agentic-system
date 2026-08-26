@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Sessions & Working Data
+.sessions/
+.worktrees/
+.logs/
+*.db
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Gradle / KMP Build Artifacts
+.gradle/
+build/
+composeApp/build/

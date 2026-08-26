@@ -1,0 +1,30 @@
+version: "1.0"
+models:
+  cloud_provider: "deepseek"
+  cloud_model: "deepseek-chat"
+  deepseek_api_key_env: "DEEPSEEK_API_KEY"
+  daily_token_limit: 100000
+  local_provider: "ollama"
+  local_model: "qwen2.5-coder:14b"
+  ollama_base_url: "http://localhost:11434"
+
+kmp:
+  target_platforms:
+    - "android"
+    - "ios"
+    - "desktop"
+    - "wasmJs"
+  ui_framework: "compose_multiplatform_m3"
+  di_framework: "koin"
+
+guardrails:
+  hitl_plan_approval: true
+  hitl_diff_review: true
+  owasp_keychain_keystore_enforcement: true
+  max_self_healing_iterations: 5
+
+paths:
+  sessions_dir: ".sessions"
+  worktrees_dir: ".worktrees"
+  logs_dir: ".logs"
+  skills_dir: "skills"

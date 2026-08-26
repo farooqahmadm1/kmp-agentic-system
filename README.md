@@ -3,11 +3,78 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![Ollama](https://img.shields.io/badge/Local%20LLM-Ollama-black.svg)](https://ollama.ai)
-[![DeepSeek](https://img.shields.io/badge/Cloud%20LLM-DeepSeek%20V3-blueviolet.svg)](https://deepseek.com)
+[![Claude](https://img.shields.io/badge/Cloud%20LLM-Claude%203.5%20Sonnet-coral.svg)](https://anthropic.com)
+[![Gemini](https://img.shields.io/badge/Cloud%20LLM-Gemini%202.0%20%2F%201.5-blue.svg)](https://aistudio.google.com)
+[![DeepSeek](https://img.shields.io/badge/Cloud%20LLM-DeepSeek%20V3%20%2F%20R1-blueviolet.svg)](https://deepseek.com)
 [![KMP](https://img.shields.io/badge/Kotlin-Multiplatform%202.x-purple.svg)](https://kotlinlang.org/docs/multiplatform.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **DeepSeek Cloud API** (primary reasoning & architecture) with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
+An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude 3.5 Sonnet, Gemini 2.0/1.5 Pro, DeepSeek V3/R1)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
+
+---
+
+## 🔑 Connecting Your Accounts (Claude, Gemini, DeepSeek, Ollama)
+
+You can use this system with your existing **Google Gemini account**, **Anthropic Claude account**, **DeepSeek account**, or 100% locally with **Ollama**:
+
+### 1. Google Gemini (Google AI Studio - Free Tier Available)
+If you have a Google Account or Gemini Advanced subscription, you can generate an API key via Google AI Studio without credit card fees:
+1. Visit **[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)** and sign in with your Google account.
+2. Click **"Create API key"**.
+3. Set your environment variable:
+   ```bash
+   export GEMINI_API_KEY="AIzaSy..."
+   ```
+4. In `kmp_agent_config.yaml`, set:
+   ```yaml
+   models:
+     cloud_provider: "gemini"
+     gemini_model: "gemini-2.0-flash"  # or "gemini-1.5-pro"
+   ```
+
+---
+
+### 2. Anthropic Claude 3.5 Sonnet (Anthropic Console)
+If you use Claude Pro or have an Anthropic developer account:
+1. Visit **[https://console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)**.
+2. Click **"Create Key"** and copy your `sk-ant-...` key.
+3. Set your environment variable:
+   ```bash
+   export ANTHROPIC_API_KEY="sk-ant-..."
+   ```
+4. In `kmp_agent_config.yaml`, set:
+   ```yaml
+   models:
+     cloud_provider: "anthropic"
+     anthropic_model: "claude-3-5-sonnet-latest"
+   ```
+
+---
+
+### 3. DeepSeek (DeepSeek Platform)
+1. Visit **[https://platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)**.
+2. Create an API key (`sk-...`).
+3. Set your environment variable:
+   ```bash
+   export DEEPSEEK_API_KEY="sk-..."
+   ```
+4. In `kmp_agent_config.yaml`, set:
+   ```yaml
+   models:
+     cloud_provider: "deepseek"
+     deepseek_model: "deepseek-chat"  # or "deepseek-reasoner"
+   ```
+
+---
+
+### 4. 100% Free Local Offline Mode (Ollama)
+If you do not want to use any cloud provider or API keys:
+1. Install and start [Ollama](https://ollama.ai).
+2. Pull the recommended local coding model:
+   ```bash
+   ollama pull qwen2.5-coder:14b
+   ```
+3. The system automatically runs locally without needing any API keys!
 
 ---
 
@@ -19,11 +86,18 @@ graph TD
     PreFlight --> RouterNode[🔀 Hybrid Model Router & Token Budget Manager]
 
     subgraph LLM_Backend ["🤖 Hybrid Intelligence Layer"]
-        DeepSeek[⚡ DeepSeek Cloud API<br/><i>Primary: Architect & Deep Logic</i>]
-        Ollama[🦙 Local Ollama Engine<br/><i>Fallback: qwen2.5-coder:14b / Offline</i>]
+        Claude[🧠 Claude 3.5 Sonnet]
+        Gemini[💎 Gemini 2.0 / 1.5 Pro]
+        DeepSeek[⚡ DeepSeek V3 / R1]
+        Ollama[🦙 Local Ollama Engine: qwen2.5-coder:14b]
         BudgetTracker[(📊 Token Budget & Quota Ledger)]
         
-        DeepSeek -.->|Quota Exceeded / 429 RateLimit / Offline| Ollama
+        Claude -.->|Quota Reached / 429 / Offline| Ollama
+        Gemini -.->|Quota Reached / 429 / Offline| Ollama
+        DeepSeek -.->|Quota Reached / 429 / Offline| Ollama
+        
+        Claude --> BudgetTracker
+        Gemini --> BudgetTracker
         DeepSeek --> BudgetTracker
         Ollama --> BudgetTracker
     end
@@ -86,11 +160,11 @@ graph TD
 
 | # | Agent Name | Type | Model / Tech | Core Responsibilities |
 | :-: | :--- | :--- | :--- | :--- |
-| **1** | **🎯 Lead Architect & Planner** | Cognitive | DeepSeek / `qwen2.5-coder:32b` | Decomposes feature into Clean Architecture layers, identifies existing shared classes via Graphify, and maps `expect`/`actual` bridges. |
-| **2** | **🧠 Core Domain Specialist** | Cognitive | `qwen2.5-coder:14b` | Generates pure Kotlin shared logic in `commonMain` (Ktor 3.x, Room KMP/SQLDelight, Coroutines `StateFlow`). |
-| **3** | **🎨 Compose UI Specialist** | Cognitive | `qwen2.5-coder:14b` | Implements adaptive Material 3 UI screens and Compose Multiplatform **Resources API** (`Res.string.*`, `Res.drawable.*`). |
-| **4** | **📱 Native Bridge Specialist** | Cognitive | `qwen2.5-coder:14b` | Implements `expect` declarations in `commonMain` and platform `actual` code (Android KeyStore, iOS Keychain / `SKIE`, Desktop, Wasm). |
-| **5** | **🩺 Diagnostic QA Agent** | Cognitive | `qwen2.5-coder:14b` | Analyzes Kotlin 2.x compiler error logs, matches episodic memory fix recipes, and dispatches targeted diffs. |
+| **1** | **🎯 Lead Architect & Planner** | Cognitive | Claude / Gemini / DeepSeek | Decomposes feature into Clean Architecture layers, identifies existing shared classes via Graphify, and maps `expect`/`actual` bridges. |
+| **2** | **🧠 Core Domain Specialist** | Cognitive | Claude / Gemini / `qwen2.5-coder:14b` | Generates pure Kotlin shared logic in `commonMain` (Ktor 3.x, Room KMP/SQLDelight, Coroutines `StateFlow`). |
+| **3** | **🎨 Compose UI Specialist** | Cognitive | Claude / Gemini / `qwen2.5-coder:14b` | Implements adaptive Material 3 UI screens and Compose Multiplatform **Resources API** (`Res.string.*`, `Res.drawable.*`). |
+| **4** | **📱 Native Bridge Specialist** | Cognitive | Claude / Gemini / `qwen2.5-coder:14b` | Implements `expect` declarations in `commonMain` and platform `actual` code (Android KeyStore, iOS Keychain / `SKIE`, Desktop, Wasm). |
+| **5** | **🩺 Diagnostic QA Agent** | Cognitive | Claude / Gemini / `qwen2.5-coder:14b` | Analyzes Kotlin 2.x compiler error logs, matches episodic memory fix recipes, and dispatches targeted diffs. |
 | **6** | **🛡️ OWASP Security Guardrail** | Guardian | Deterministic Python / AST | Pre-flight prompt sanitizer, secret redactor, Mobile Top 10 compliance checker, and dependency verification. |
 | **7** | **📂 Worktree & File Sandbox** | Guardian | Git Worktree / Pathlib | Provisions `.worktrees/<task-id>`, confines file writes to sandbox, and manages atomic commits and merges. |
 | **8** | **⚙️ Gradle Build Runner** | Guardian | Subprocess / Gradle Daemon | Executes isolated `./gradlew check` and extracts structured `CompilerDiagnostic` error logs. |
@@ -127,32 +201,27 @@ graph TD
 
 ### 1. Installation
 ```bash
-git clone https://github.com/your-org/kmp-agentic-system.git
+git clone https://github.com/farooqahmadm1/kmp-agentic-system.git
 cd kmp-agentic-system
 pip install -r requirements.txt
 ```
 
-### 2. Pull Recommended Local Model (Ollama)
-```bash
-ollama pull qwen2.5-coder:14b
-```
-
-### 3. Pre-Flight Health Check
+### 2. Pre-Flight Health Check
 ```bash
 python3 cli.py health
 ```
 
-### 4. Scaffold Fresh KMP Project
+### 3. Scaffold Fresh KMP Project
 ```bash
 python3 cli.py init
 ```
 
-### 5. Launch an Autonomous Feature Task
+### 4. Launch an Autonomous Feature Task
 ```bash
 python3 cli.py new-task "Create a shared biometric authentication reader with expect/actual and a Compose UI status card"
 ```
 
-### 6. Manage Sessions
+### 5. Manage Sessions
 ```bash
 python3 cli.py session list
 ```

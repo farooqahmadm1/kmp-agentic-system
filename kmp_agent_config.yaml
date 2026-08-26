@@ -1,9 +1,19 @@
 version: "1.0"
 models:
+  # Choose active cloud provider: "deepseek", "anthropic" (Claude), or "gemini"
   cloud_provider: "deepseek"
-  cloud_model: "deepseek-chat"
+  
+  # Provider Models:
+  deepseek_model: "deepseek-chat"
+  anthropic_model: "claude-3-5-sonnet-latest"
+  gemini_model: "gemini-2.0-flash"
+
+  # API Key Environment Variables:
   deepseek_api_key_env: "DEEPSEEK_API_KEY"
-  daily_token_limit: 100000
+  anthropic_api_key_env: "ANTHROPIC_API_KEY"
+  gemini_api_key_env: "GEMINI_API_KEY"
+
+  daily_token_limit: 150000
   local_provider: "ollama"
   local_model: "qwen2.5-coder:14b"
   ollama_base_url: "http://localhost:11434"

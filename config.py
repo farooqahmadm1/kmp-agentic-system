@@ -15,10 +15,19 @@ class AppConfig:
         
         # Models configuration
         models = config_dict.get("models", {})
-        self.cloud_provider = models.get("cloud_provider", "deepseek")
-        self.cloud_model = models.get("cloud_model", "deepseek-chat")
+        self.cloud_provider = models.get("cloud_provider", "deepseek").lower()
+        
+        # Models per provider
+        self.deepseek_model = models.get("deepseek_model", "deepseek-chat")
+        self.anthropic_model = models.get("anthropic_model", "claude-3-5-sonnet-latest")
+        self.gemini_model = models.get("gemini_model", "gemini-2.0-flash")
+        
+        # API Keys from environment
         self.deepseek_api_key = os.getenv(models.get("deepseek_api_key_env", "DEEPSEEK_API_KEY"), "")
-        self.daily_token_limit = int(models.get("daily_token_limit", 100000))
+        self.anthropic_api_key = os.getenv(models.get("anthropic_api_key_env", "ANTHROPIC_API_KEY"), "")
+        self.gemini_api_key = os.getenv(models.get("gemini_api_key_env", "GEMINI_API_KEY"), os.getenv("GOOGLE_API_KEY", ""))
+
+        self.daily_token_limit = int(models.get("daily_token_limit", 150000))
         self.local_provider = models.get("local_provider", "ollama")
         self.local_model = models.get("local_model", "qwen2.5-coder:14b")
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", models.get("ollama_base_url", "http://localhost:11434"))

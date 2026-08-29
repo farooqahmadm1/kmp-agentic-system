@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Python Multi-Agent Orchestrator Service
+  kmp-agent:
+    build: .
+    container_name: kmp-agentic-system
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - ./:/app
+      - sessions_data:/app/.sessions
+    stdin_open: true
+    tty: true
+
+  # Local Ollama Inference Engine Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kmp-ollama-engine
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  sessions_data:
+  ollama_models:

@@ -1,5 +1,6 @@
 # 🚀 KMP Agentic System
 
+[![CI Suite](https://github.com/farooqahmadm1/kmp-agentic-system/actions/workflows/ci.yml/badge.svg)](https://github.com/farooqahmadm1/kmp-agentic-system/actions)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![Ollama](https://img.shields.io/badge/Local%20LLM-Ollama-black.svg)](https://ollama.ai)
@@ -9,7 +10,7 @@
 [![KMP](https://img.shields.io/badge/Kotlin-Multiplatform%202.x-purple.svg)](https://kotlinlang.org/docs/multiplatform.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude 3.5 Sonnet, Gemini 2.0/1.5 Pro, DeepSeek V3/R1)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, equipped with a **Production KMP Scaffolder**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
+An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude 3.5 Sonnet, Gemini 2.0/1.5 Pro, DeepSeek V3/R1)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, equipped with a **Production KMP Scaffolder**, containerized via **Docker**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
 
 ---
 
@@ -172,46 +173,45 @@ graph TD
 
 ---
 
-## 🚀 Quick Start & CLI Usage
+## 📚 Production Reference Blueprints (`examples/`)
 
-### 1. Installation
-```bash
-git clone https://github.com/farooqahmadm1/kmp-agentic-system.git
-cd kmp-agentic-system
-pip install -r requirements.txt
-```
+Explore fully functional reference architecture patterns inside the `examples/` directory:
 
-### 2. Pre-Flight Health Check
-```bash
-python3 cli.py health
-```
+1. **[Biometric Authentication (`expect`/`actual`)](examples/biometric_auth/)**: Full cross-platform implementation using `BiometricPrompt` on Android and Apple's `LocalAuthentication` (`LAContext`) on iOS.
+2. **[OWASP Mobile M1 Secure Storage](examples/secure_storage/)**: Hardware-backed credential encryption using **Android KeyStore** (`EncryptedSharedPreferences`) and **iOS Keychain Services**.
+3. **[Offline-First Ktor 3.x + Room KMP](examples/offline_first_networking/)**: Resilient offline sync pattern with reactive Kotlin Coroutines `StateFlow`.
 
-### 3. Scaffold a Full Production-Ready KMP Project
-Generate a buildable Kotlin 2.x + Compose Multiplatform starter project with Gradle Kotlin DSL, Version Catalog, and Android/iOS/Desktop/Wasm targets:
-```bash
-python3 cli.py init --name MySuperApp --package com.example.superapp
-```
+---
 
-### 4. Launch an Autonomous Feature Development Task
-```bash
-python3 cli.py new-task "Create a shared biometric authentication reader with expect/actual and a Compose UI status card"
-```
+## 🚀 Developer Commands (`Makefile` & CLI)
 
-### 5. Launch the Interactive Textual TUI Dashboard
 ```bash
-python3 cli.py tui
-```
+# 1. Setup & Installation
+make install
 
-### 6. Manage Sessions & Time-Travel
-```bash
-python3 cli.py session list
+# 2. Run Pre-Flight Health Check
+make health
+
+# 3. Scaffold a Full KMP Starter Project
+make init
+
+# 4. Run Automated Test Suite
+make test
+
+# 5. Launch Interactive Terminal UI Dashboard
+make tui
+
+# 6. Run via Docker Compose (Multi-Agent + Ollama Mesh)
+make docker-up
 ```
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing & CI
 
-Run the full automated test suite:
+Continuous Integration is automatically run on every push and PR via GitHub Actions across **Python 3.9, 3.10, 3.11, 3.12** on **Ubuntu & macOS**.
+
+To run locally:
 ```bash
 python3 -m unittest discover tests
 ```

@@ -8,6 +8,7 @@ try:
     from rich.console import Console
     from rich.table import Table
     from rich.panel import Panel
+    from rich.prompt import Prompt, Confirm
     console = Console()
     HAS_RICH = True
 except ImportError:
@@ -27,9 +28,10 @@ except ImportError:
 from config import config
 from tools.health_checker import HealthChecker
 from memory.session_manager import SessionManager
+from tools.kmp_scaffolder import KMPProjectScaffolder
 
 def cmd_health():
-    """Performs pre-flight health checks for Ollama and DeepSeek."""
+    """Performs pre-flight health checks for Ollama and Cloud APIs."""
     res = HealthChecker.check_all()
     if HAS_RICH:
         table = Table(title="🔍 Pre-Flight Health Check", expand=True)
@@ -43,15 +45,15 @@ def cmd_health():
             res["ollama_message"]
         )
         table.add_row(
-            "DeepSeek Cloud",
-            "[green]CONFIGURED[/green]" if res["deepseek_configured"] else "[yellow]NOT SET (Local Only)[/yellow]",
+            "Active Cloud Provider",
+            f"[green]{config.cloud_provider.upper()}[/green]",
             f"Daily Quota: {res['daily_token_limit']:,} tokens"
         )
         console.print(table)
     else:
         print("================== Pre-Flight Health Check ==================")
         print(f"Local Ollama:   {'ONLINE' if res['ollama_active'] else 'OFFLINE'} - {res['ollama_message']}")
-        print(f"DeepSeek Cloud: {'CONFIGURED' if res['deepseek_configured'] else 'NOT SET (Local Only)'} - Daily Quota: {res['daily_token_limit']:,} tokens")
+        print(f"Cloud Provider: {config.cloud_provider.upper()} - Daily Quota: {res['daily_token_limit']:,} tokens")
         print("=============================================================")
 
 def cmd_session_list():
@@ -82,7 +84,7 @@ def cmd_session_list():
         print("========================================================")
 
 def cmd_new_task(task_id: Optional[str], description: str, platforms: list):
-    """Launches a new KMP feature development task."""
+    """Launches a new KMP feature development task with interactive HITL gates."""
     from graph import create_kmp_graph
     
     tid = task_id or f"task-{uuid.uuid4().hex[:8]}"
@@ -103,28 +105,27 @@ def cmd_new_task(task_id: Optional[str], description: str, platforms: list):
         "compiler_diagnostics": []
     }
 
-    # Execute graph
+    # Execute graph with stream
     for event in app.stream(initial_state, config=app_config):
         for node_name, state_update in event.items():
             console.print(f"  ✓ Completed node: {node_name}")
 
     console.print(f"\n🎉 Task '{tid}' execution cycle completed successfully!")
 
-def cmd_init_starter():
-    """Scaffolds a clean modern Kotlin 2.x + Compose Multiplatform starter template."""
-    console.print("📦 Scaffolding fresh Kotlin Multiplatform + Compose starter...")
-    src_dirs = [
-        "composeApp/src/commonMain/kotlin",
-        "composeApp/src/androidMain/kotlin",
-        "composeApp/src/iosMain/kotlin",
-        "composeApp/src/desktopMain/kotlin",
-        "composeApp/src/wasmJsMain/kotlin",
-        "composeApp/src/commonTest/kotlin",
-        "gradle"
-    ]
-    for d in src_dirs:
-        os.makedirs(d, exist_ok=True)
-    console.print("✓ Scaffolding complete. Source sets ready for multi-agent development.")
+def cmd_init_starter(app_name: str, package_name: str):
+    """Scaffolds a production-grade Kotlin 2.x + Compose Multiplatform starter template."""
+    console.print(f"📦 Scaffolding fresh Kotlin Multiplatform project '{app_name}' ({package_name})...")
+    KMPProjectScaffolder.scaffold(
+        root_dir=".",
+        app_name=app_name,
+        package_name=package_name
+    )
+    console.print("✓ Scaffolding complete. Target source sets (Android, iOS, Desktop, Wasm) and version catalog generated.")
+
+def cmd_tui():
+    """Launches the interactive Textual TUI control center."""
+    from ui.tui_app import run_tui
+    run_tui()
 
 def main():
     parser = argparse.ArgumentParser(description="KMP Multi-Agent System CLI")
@@ -134,7 +135,12 @@ def main():
     subparsers.add_parser("health", help="Run pre-flight connectivity checks")
 
     # init
-    subparsers.add_parser("init", help="Initialize starter KMP project structure")
+    init_parser = subparsers.add_parser("init", help="Initialize full starter KMP project structure")
+    init_parser.add_argument("--name", type=str, default="ComposeApp", help="Application name")
+    init_parser.add_argument("--package", type=str, default="com.example.kmp", help="Root package identifier")
+
+    # tui
+    subparsers.add_parser("tui", help="Launch interactive Terminal UI dashboard")
 
     # session
     session_parser = subparsers.add_parser("session", help="Manage sessions")
@@ -152,7 +158,9 @@ def main():
     if args.command == "health":
         cmd_health()
     elif args.command == "init":
-        cmd_init_starter()
+        cmd_init_starter(args.name, args.package)
+    elif args.command == "tui":
+        cmd_tui()
     elif args.command == "session" and getattr(args, "session_command", None) == "list":
         cmd_session_list()
     elif args.command == "new-task":

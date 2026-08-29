@@ -9,7 +9,7 @@
 [![KMP](https://img.shields.io/badge/Kotlin-Multiplatform%202.x-purple.svg)](https://kotlinlang.org/docs/multiplatform.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude 3.5 Sonnet, Gemini 2.0/1.5 Pro, DeepSeek V3/R1)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
+An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude 3.5 Sonnet, Gemini 2.0/1.5 Pro, DeepSeek V3/R1)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, equipped with a **Production KMP Scaffolder**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
 
 ---
 
@@ -172,32 +172,7 @@ graph TD
 
 ---
 
-## 🛡️ OWASP Dual-Layer Security & Guardrails
-
-1. **Layer 1: Agentic System Security (OWASP Top 10 for LLMs / Agents)**:
-   - **LLM01 Prompt Injection Defense**: Delimiter boundary isolation (`<user_task_specification>`).
-   - **LLM02 Secret & PII Redactor**: Pre-flight regex & entropy scanner strips API keys and credentials before LLM calls.
-   - **LLM06 Excessive Agency Sandboxing**: Strict file I/O boundary confinement within `.worktrees/<task-id>`.
-   - **LLM09 Dependency Slopsquatting Protection**: Validates new Gradle dependencies against Maven Central and Google Maven.
-   - **LLM10 Token DoS Circuit Breaker**: Caps self-healing iterations (`max_iterations = 5`) and daily token spend.
-
-2. **Layer 2: KMP Application Security (OWASP Mobile Top 10)**:
-   - **M1 Secure Storage**: Enforces **Android KeyStore** (`EncryptedSharedPreferences`) and **iOS Keychain Services** (blocks plain `SharedPreferences`).
-   - **M4 Safe Data & Serialization**: Parameterized SQL queries and safe `kotlinx.serialization`.
-   - **M5 Secure Communication**: Ktor TLS enforcement, certificate pinning, and ATS/NetworkSecurityConfig compliance.
-
----
-
-## 💾 4-Tier Cognitive Memory & Session Persistence
-
-- **Tier 1 (Ephemeral Scratchpad)**: Raw compiler logs and tool stdout wiped per step.
-- **Tier 2 (Task Working State)**: LangGraph `thread_id` checkpoints stored in `.sessions/checkpoints.db`.
-- **Tier 3 (Project Codebase Graph)**: Graphify AST Knowledge Graph of the KMP repository.
-- **Tier 4 (Episodic Learning Memory)**: SQLite database of past compiler error signatures and verified resolution recipes.
-
----
-
-## 🚀 Quick Start
+## 🚀 Quick Start & CLI Usage
 
 ### 1. Installation
 ```bash
@@ -211,17 +186,23 @@ pip install -r requirements.txt
 python3 cli.py health
 ```
 
-### 3. Scaffold Fresh KMP Project
+### 3. Scaffold a Full Production-Ready KMP Project
+Generate a buildable Kotlin 2.x + Compose Multiplatform starter project with Gradle Kotlin DSL, Version Catalog, and Android/iOS/Desktop/Wasm targets:
 ```bash
-python3 cli.py init
+python3 cli.py init --name MySuperApp --package com.example.superapp
 ```
 
-### 4. Launch an Autonomous Feature Task
+### 4. Launch an Autonomous Feature Development Task
 ```bash
 python3 cli.py new-task "Create a shared biometric authentication reader with expect/actual and a Compose UI status card"
 ```
 
-### 5. Manage Sessions
+### 5. Launch the Interactive Textual TUI Dashboard
+```bash
+python3 cli.py tui
+```
+
+### 6. Manage Sessions & Time-Travel
 ```bash
 python3 cli.py session list
 ```

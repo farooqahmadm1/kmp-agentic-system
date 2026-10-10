@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class KMPFileSpec(BaseModel):
     """Represents a file generated or modified in a specific KMP source set."""
     file_path: str = Field(description="Relative path e.g. composeApp/src/commonMain/kotlin/App.kt")
-    source_set: Literal["commonMain", "androidMain", "iosMain", "desktopMain", "wasmJsMain", "commonTest"]
+    source_set: str = Field(description="e.g. commonMain, androidMain, iosMain, commonTest")
     content: str
     description: str
 
@@ -58,7 +58,8 @@ class KMPGraphState(TypedDict):
     task_id: str
     task_description: str
     target_platforms: List[Literal["android", "ios", "desktop", "wasmJs"]]
-    workspace_root: str # Isolated Git Worktree path
+    workspace_root: str # KMP/Gradle root inside the isolated Git Worktree
+    project_name: str # Key into `projects` in kmp_agent_config.yaml ("" = this repo)
     
     # Architecture Blueprint
     plan: Optional[KMPPlan]
@@ -74,6 +75,9 @@ class KMPGraphState(TypedDict):
     build_output_tail: str
     compiler_diagnostics: List[CompilerDiagnostic]
     
+    # Fix instructions from the diagnostic agent, fed back into the coder agents on retry
+    fix_notes: str
+
     # Self-Healing Iteration Control
     iteration_count: int
     max_iterations: int

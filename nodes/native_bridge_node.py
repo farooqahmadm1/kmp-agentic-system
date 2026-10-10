@@ -5,6 +5,7 @@ from state import KMPGraphState, KMPFileSpec
 from models.hybrid_router import HybridModelRouter
 from models.prompt_templates import NATIVE_BRIDGE_SYSTEM_PROMPT
 from skills.skill_registry import KMPSkillRegistry
+from nodes.project_context import coder_prompt, extract_code
 
 def native_bridge_node(state: KMPGraphState) -> Dict[str, Any]:
     """Agent 4: Native Bridge Specialist generates expect/actual declarations across platforms."""
@@ -25,16 +26,18 @@ def native_bridge_node(state: KMPGraphState) -> Dict[str, Any]:
         
         # 2. Actual implementations
         for plat, act in bridge.actual_implementations.items():
-            prompt = f"Implement Kotlin 2.x 'actual' for {bridge.interface_name} on {plat}.\nPath: {act.file_path}\n\n{skill_context}"
+            prompt = coder_prompt(
+                state, act,
+                f"Implement the Kotlin 2.x 'actual' for {bridge.interface_name} on {plat}, matching this expect declaration:\n"
+                f"```kotlin\n{exp.content}\n```\nFile",
+                skill_context,
+                generated_files
+            )
             res = router.invoke([
                 SystemMessage(content=NATIVE_BRIDGE_SYSTEM_PROMPT),
                 HumanMessage(content=prompt)
             ])
-            clean_code = res.content
-            if "```kotlin" in clean_code:
-                clean_code = clean_code.split("```kotlin")[1].split("```")[0].strip()
-            elif "```" in clean_code:
-                clean_code = clean_code.split("```")[1].split("```")[0].strip()
+            clean_code = extract_code(res.content)
 
             generated_files[act.file_path] = KMPFileSpec(
                 file_path=act.file_path,

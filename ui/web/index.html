@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KMP Agents</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f1f3f6; --border: #e2e5ea;
+  --text: #1c2027; --muted: #6a7280; --accent: #6d4aff; --accent-soft: #efeaff;
+  --ok: #1f9d55; --ok-soft: #e3f6ea; --run: #2563eb; --run-soft: #e4edff;
+  --warn: #b7791f; --warn-soft: #fdf3dc; --bad: #d64545; --bad-soft: #fde7e7;
+  --code-bg: #0f1218; --code-text: #d7dde8;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1015; --panel: #161920; --panel-2: #1d212a; --border: #2a2f3a;
+    --text: #e6e9ef; --muted: #8b93a3; --accent: #9b82ff; --accent-soft: #261f45;
+    --ok: #3ccf7a; --ok-soft: #12301f; --run: #6ea1ff; --run-soft: #172540;
+    --warn: #e7b04b; --warn-soft: #33270f; --bad: #ff6b6b; --bad-soft: #3a1717;
+    --code-bg: #0a0c10;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+button { font: inherit; color: inherit; }
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--border);
+  background: var(--panel); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+header h1 span { color: var(--accent); }
+.chain { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--border); font-size: 12px; white-space: nowrap; }
+.spacer { flex: 1; }
+.meter { width: 160px; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.meter > div { height: 100%; background: var(--accent); }
+.layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 53px); }
+aside { border-right: 1px solid var(--border); background: var(--panel); overflow-y: auto; max-height: calc(100vh - 53px); position: sticky; top: 53px; }
+.aside-head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+.aside-head input { flex: 1; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); font: inherit; }
+.run { padding: 11px 14px; border-bottom: 1px solid var(--border); cursor: pointer; display: block; width: 100%;
+  text-align: left; background: none; border-left: 3px solid transparent; border-top: 0; border-right: 0; }
+.run:hover { background: var(--panel-2); }
+.run.active { background: var(--accent-soft); border-left-color: var(--accent); }
+.run .desc { font-weight: 550; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.run .meta { color: var(--muted); font-size: 12px; margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: .3px; }
+.s-COMPLETED { background: var(--ok-soft); color: var(--ok); }
+.s-RUNNING { background: var(--run-soft); color: var(--run); }
+.s-WAITING { background: var(--warn-soft); color: var(--warn); }
+.s-FAILED, .s-ERROR { background: var(--bad-soft); color: var(--bad); }
+.s-CANCELLED, .s-STALE, .s-UNKNOWN, .s-ACTIVE { background: var(--panel-2); color: var(--muted); }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--run); display: inline-block; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+main { padding: 20px 24px 60px; min-width: 0; }
+.empty { color: var(--muted); padding: 60px 20px; text-align: center; }
+.empty code, .help code { background: var(--panel-2); padding: 2px 6px; border-radius: 5px; font-family: var(--mono); font-size: 12.5px; }
+.title-row { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.title-row h2 { margin: 0; font-size: 20px; flex: 1; min-width: 240px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 16px 0 20px; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.stat .k { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; }
+.stat .v { font-size: 16px; font-weight: 600; margin-top: 2px; word-break: break-all; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.card h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.banner { border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; background: var(--warn-soft); color: var(--warn); font-weight: 550; }
+/* pipeline */
+.pipeline { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+.stage { display: flex; align-items: center; gap: 6px; }
+.node { border: 1px solid var(--border); background: var(--panel-2); border-radius: 10px; padding: 8px 10px; min-width: 112px; position: relative; }
+.node .n { font-size: 12.5px; font-weight: 600; }
+.node .d { font-size: 11px; color: var(--muted); }
+.node .count { position: absolute; top: -8px; right: -6px; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 0 6px; }
+.node.done { border-color: var(--ok); background: var(--ok-soft); }
+.node.running { border-color: var(--run); background: var(--run-soft); box-shadow: 0 0 0 3px var(--run-soft); }
+.node.failed { border-color: var(--bad); background: var(--bad-soft); }
+.node.waiting { border-color: var(--warn); background: var(--warn-soft); }
+.arrow { color: var(--muted); font-size: 14px; }
+.loop-note { margin-top: 10px; font-size: 12px; color: var(--muted); }
+/* tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; }
+.tab { padding: 8px 12px; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; color: var(--muted); white-space: nowrap; }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+/* timeline */
+.tl { list-style: none; margin: 0; padding: 0; }
+.ev { display: grid; grid-template-columns: 72px 18px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+.ev:last-child { border-bottom: 0; }
+.ev .t { color: var(--muted); font-family: var(--mono); font-size: 11.5px; padding-top: 2px; }
+.ev .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--muted); }
+.dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.live { background: var(--run); }
+.dot.warn { background: var(--warn); } .dot.ai { background: var(--accent); }
+.ev .body { min-width: 0; }
+.ev .h { font-weight: 550; }
+.ev .sub { color: var(--muted); font-size: 12.5px; }
+.ev.nested { padding-left: 24px; }
+details { margin-top: 6px; }
+summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
+pre { background: var(--code-bg); color: var(--code-text); padding: 12px; border-radius: 8px; overflow: auto; max-height: 420px;
+  font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; }
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13px; }
+.kv .k { color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+td.mono, .mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.file-row { cursor: pointer; }
+.file-row:hover td { background: var(--panel-2); }
+.how { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.how .item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--panel-2); }
+.how .item b { display: block; margin-bottom: 4px; }
+.help { color: var(--muted); font-size: 13px; }
+.btn { border: 1px solid var(--border); background: var(--panel-2); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 550; }
+.btn:hover { filter: brightness(.97); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.approve { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.reject { background: none; border-color: var(--bad); color: var(--bad); }
+.aside-head .btn { white-space: nowrap; padding: 6px 10px; }
+.approval { border: 2px solid var(--warn); }
+.approval h3 { color: var(--warn); }
+.actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.form { display: grid; gap: 14px; max-width: 720px; }
+.form label { font-weight: 550; font-size: 13px; display: block; margin-bottom: 5px; }
+.form textarea, .form select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); font: inherit; }
+.form textarea { min-height: 120px; resize: vertical; }
+.checks { display: flex; gap: 14px; flex-wrap: wrap; }
+.checks label { font-weight: 400; display: flex; gap: 6px; align-items: center; margin: 0; }
+.error { color: var(--bad); font-size: 13px; }
+.diff { background: var(--code-bg); border-radius: 8px; overflow: auto; max-height: 520px; font: 12px/1.5 var(--mono); margin-top: 8px; }
+.diff div { padding: 0 12px; white-space: pre-wrap; word-break: break-word; color: var(--code-text); }
+.diff .add { background: rgba(46, 160, 67, .22); }
+.diff .del { background: rgba(248, 81, 73, .22); }
+.diff .hunk { color: #79c0ff; }
+.diff .file { color: #fff; font-weight: 700; background: rgba(255,255,255,.06); padding-top: 4px; padding-bottom: 4px; }
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; max-height: 320px; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 16px; }
+  .ev { grid-template-columns: 58px 14px 1fr; }
+  .kv { grid-template-columns: 110px 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>KMP <span>Agents</span></h1>
+  <div class="chain" id="chain"></div>
+  <div class="spacer"></div>
+  <div class="chain" id="usage"></div>
+</header>
+<div class="layout">
+  <aside>
+    <div class="aside-head"><input id="search" placeholder="Search runs…" autocomplete="off"><button class="btn primary" id="new-btn">+ New task</button></div>
+    <div id="runs"></div>
+  </aside>
+  <main id="main"><div class="empty">Loading…</div></main>
+</div>
+
+<script>
+const NODES = [
+  ["init_node", "Init", "Worktree + branch"],
+  ["architect_node", "Architect", "Plans files"],
+  ["core_domain_node", "Domain", "commonMain logic"],
+  ["compose_ui_node", "Compose UI", "Screens"],
+  ["native_bridge_node", "Native bridge", "expect/actual"],
+  ["guardrail_node", "Guardrail", "OWASP checks"],
+  ["file_writer_node", "Writer", "Writes files"],
+  ["gradle_build_node", "Gradle", "Compile check"],
+  ["diagnostic_node", "Diagnostic", "Fix errors"],
+  ["ui_verify_node", "UI verify", "Preview scan"],
+  ["finalize_node", "Finalize", "Commit branch"],
+];
+const NODE_LABEL = Object.fromEntries(NODES.map(n => [n[0], n[1]]));
+const HOW = [
+  ["1 · Init", "Creates an isolated git worktree from the project's base branch on a new agent/<task> branch, and copies ignored build files (local.properties, google-services.json). Your real checkout is never touched."],
+  ["2 · Architect", "Reads a map of the project's existing Kotlin files and asks the model for a JSON plan: which files to create or change, in which source set."],
+  ["⏸ Plan approval", "The CLI pauses and shows you the plan. Nothing is written until you approve."],
+  ["3–5 · Coders", "Domain, Compose UI and Native bridge agents each write their files. They get the existing file content (if any), the project map, and — on retries — the diagnostic agent's fix notes."],
+  ["6 · Guardrail", "Deterministic OWASP checks: no secrets, no platform imports in commonMain, safe storage."],
+  ["7–8 · Write + Gradle", "Files are written into the worktree and Gradle compiles Android and iOS."],
+  ["9 · Diagnostic loop", "If the build fails, the diagnostic agent reads the compiler errors and writes fix notes, then the coders run again (up to the retry limit)."],
+  ["⏸ Diff review → Finalize", "You review the changed files; on approval the work is committed to agent/<task> for you to merge yourself."],
+];
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtTime = ts => ts ? new Date(ts).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"}) : "";
+const fmtDate = ts => ts ? new Date(ts).toLocaleString([], {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"}) : "";
+const fmtNum = n => (n || 0).toLocaleString();
+function fmtDur(s) {
+  if (s == null) return "—";
+  if (s < 1) return `${Math.round(s * 1000)}ms`;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return m < 60 ? `${m}m ${r}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+function ago(ts) {
+  if (!ts) return "";
+  const s = (Date.now() - new Date(ts)) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return fmtDate(ts);
+}
+const badge = st => `<span class="badge s-${esc(st)}">${esc(st)}</span>`;
+
+let tasks = [], selected = null, detail = null, tab = "timeline", mode = "detail";
+try { tab = localStorage.getItem("kmp-tab") || "timeline"; } catch (e) {}
+
+async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
+async function postJSON(url, body) {
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "X-KMP-Dashboard": "1"}, body: JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+
+async function loadOverview() {
+  try {
+    const o = await getJSON("/api/overview");
+    $("#chain").innerHTML = "Models: " + o.provider_chain.map((p, i) => `<span class="chip">${i + 1}. ${esc(p)}</span>`).join('<span>→</span>');
+    const pct = Math.min(100, 100 * o.usage.today_tokens / (o.daily_token_limit || 1));
+    $("#usage").innerHTML = `<span>Today ${fmtNum(o.usage.today_tokens)} / ${fmtNum(o.daily_token_limit)} tokens</span><div class="meter"><div style="width:${pct}%"></div></div>`;
+    window.__overview = o;
+  } catch (e) {}
+}
+
+async function loadTasks() {
+  try { tasks = await getJSON("/api/tasks"); } catch (e) { return; }
+  if (mode === "new") { renderRuns(); return; }
+  if (!selected) {
+    const fromHash = decodeURIComponent((location.hash.match(/task=([^&]+)/) || [])[1] || "");
+    selected = fromHash || (tasks[0] && tasks[0].task_id) || null;
+  }
+  renderRuns();
+  if (!selected) renderEmpty();
+}
+
+function renderRuns() {
+  const q = $("#search").value.trim().toLowerCase();
+  const list = tasks.filter(t => !q || (t.description + " " + t.task_id + " " + t.project).toLowerCase().includes(q));
+  $("#runs").innerHTML = list.length ? list.map(t => `
+    <button class="run ${t.task_id === selected ? "active" : ""}" data-id="${esc(t.task_id)}">
+      <div class="desc">${esc(t.description || t.task_id)}</div>
+      <div class="meta">${t.status === "RUNNING" ? '<span class="pulse"></span>' : ""}${badge(t.status)}
+        ${t.project ? `<span>${esc(t.project)}</span>` : ""}<span>${esc(ago(t.started_at))}</span>
+        <span>${fmtDur(t.duration_s)}</span>${t.tokens ? `<span>${fmtNum(t.tokens)} tok</span>` : ""}</div>
+    </button>`).join("") : `<div class="empty">No runs${q ? " match" : " yet"}.</div>`;
+  document.querySelectorAll(".run").forEach(b => b.onclick = () => select(b.dataset.id));
+}
+
+function select(id) {
+  mode = "detail"; selected = id; detail = null;
+  history.replaceState(null, "", "#task=" + encodeURIComponent(id));
+  renderRuns(); loadDetail();
+}
+
+function renderEmpty() {
+  $("#main").innerHTML = `<div class="empty">
+    <p><b>No agent runs yet.</b></p>
+    <p><button class="btn primary" onclick="showNewTask()">+ Start a new task</button></p>
+    <p>Or from a terminal: <code>.venv/bin/python cli.py new-task "…" --project smashly</code></p></div>
+    <div class="card"><h3>How it works</h3>${howHTML()}</div>`;
+}
+
+async function loadDetail() {
+  if (!selected) return;
+  let d;
+  try { d = await getJSON("/api/tasks/" + encodeURIComponent(selected)); } catch (e) { return; }
+  if (mode !== "detail" || d.summary.task_id !== selected) return;
+  // Only redraw when something changed, so open sections and scroll positions survive polling
+  const key = [d.events.length, d.summary.status, d.summary.can_approve, d.summary.running_node].join("|");
+  const changed = !detail || detail.__key !== key;
+  detail = d; detail.__key = key;
+  if (changed) renderDetail();
+  else { const dur = document.querySelector("#dur"); if (dur) dur.textContent = fmtDur(d.summary.duration_s); }
+}
+
+function nodeStates(events, summary) {
+  const st = {};
+  for (const e of events) {
+    if (!e.node || !NODE_LABEL[e.node]) continue;
+    const s = st[e.node] ||= {runs: 0, state: "pending"};
+    if (e.type === "node_started") { s.runs++; s.state = "running"; }
+    if (e.type === "node_finished") s.state = (e.ok === false || (e.node === "gradle_build_node" && e.build_status === "failed")) ? "failed" : "done";
+  }
+  if (summary.status !== "RUNNING") for (const s of Object.values(st)) if (s.state === "running") s.state = summary.status === "WAITING" ? "done" : "failed";
+  if (summary.status === "WAITING") {
+    const n = summary.waiting_gate === "plan_approval" ? "core_domain_node" : "finalize_node";
+    (st[n] ||= {runs: 0}).state = "waiting";
+  }
+  return st;
+}
+
+function pipelineHTML(events, summary) {
+  const st = nodeStates(events, summary);
+  const box = ([id, name, desc]) => {
+    const s = st[id] || {runs: 0, state: "pending"};
+    return `<div class="node ${s.state}" title="${esc(id)}">${s.runs > 1 ? `<span class="count">×${s.runs}</span>` : ""}
+      <div class="n">${esc(name)}</div><div class="d">${s.state === "waiting" ? "awaiting approval" : esc(desc)}</div></div>`;
+  };
+  return `<div class="pipeline">${NODES.map((n, i) => `<div class="stage">${box(n)}${i < NODES.length - 1 ? '<span class="arrow">→</span>' : ""}</div>`).join("")}</div>
+    <div class="loop-note">Build fails → Diagnostic → back to Domain (self-healing loop). Build passes → UI verify → Finalize. ×N = times a step ran.</div>`;
+}
+
+function eventHTML(e, t0) {
+  const t = `<div class="t">${fmtTime(e.ts)}</div>`;
+  const node = NODE_LABEL[e.node] || e.node || "";
+  let dot = "", h = "", sub = "", more = "", nested = false;
+  switch (e.type) {
+    case "task_started":
+      dot = "live"; h = "Run started";
+      sub = `${esc(e.project || "this repo")} · platforms: ${esc((e.target_platforms || []).join(", "))} · models: ${esc((e.provider_chain || []).join(" → "))}`;
+      break;
+    case "node_started":
+      dot = "live"; h = `${esc(node)} started`; break;
+    case "node_finished": {
+      const failed = e.ok === false || (e.node === "gradle_build_node" && e.build_status === "failed");
+      dot = failed ? "bad" : "ok"; h = `${esc(node)} ${failed ? "failed" : "finished"}`;
+      sub = esc(e.summary || e.error || "");
+      if (e.plan) more += `<details><summary>Plan · ${e.plan.files.length} files</summary>${planHTML(e.plan)}</details>`;
+      if (e.files && e.node !== "file_writer_node") more += `<details><summary>${e.files.length} file(s) generated</summary>${e.files.map(f => `<div class="mono" style="margin-top:6px">${esc(f.path)} · ${f.lines} lines</div><pre>${esc(f.content)}</pre>`).join("")}</details>`;
+      if (e.diagnostics && e.diagnostics.length) more += `<details open><summary>${e.diagnostics.length} compiler error(s)</summary>${diagTable(e.diagnostics)}</details>`;
+      if (e.build_output_tail && e.build_status === "failed") more += `<details><summary>Gradle output</summary><pre>${esc(e.build_output_tail)}</pre></details>`;
+      if (e.fix_notes) more += `<details><summary>Fix notes for next attempt</summary><pre>${esc(e.fix_notes)}</pre></details>`;
+      if (e.security) more += `<details><summary>Security report · ${e.security.passed ? "passed" : "violations"}</summary><pre>${esc(JSON.stringify(e.security, null, 2))}</pre></details>`;
+      break;
+    }
+    case "llm_call":
+      nested = true; dot = e.ok ? "ai" : "bad";
+      h = `${esc(node ? node + " → " : "")}${esc(e.provider)} <span class="sub">(${esc(e.model)})</span>`;
+      sub = e.ok ? `${fmtDur(e.duration_ms / 1000)} · ${fmtNum(e.input_tokens)} in / ${fmtNum(e.output_tokens)} out` : `failed after ${fmtDur(e.duration_ms / 1000)}: ${esc(e.error)}`;
+      more = `<details><summary>Prompt</summary>${e.system_prompt ? `<pre>${esc(e.system_prompt)}</pre>` : ""}<pre>${esc(e.prompt)}</pre></details>`
+        + (e.response ? `<details><summary>Response</summary><pre>${esc(e.response)}</pre></details>` : "");
+      break;
+    case "gate_waiting":
+      dot = "warn"; h = e.gate === "plan_approval" ? "Waiting for plan approval" : "Waiting for diff review";
+      sub = e.source === "web" ? "Approve or reject in the dashboard" : "Answer in the terminal";
+      if (e.diff) more = `<details><summary>Diff</summary>${diffHTML(e.diff)}</details>`;
+      break;
+    case "gate":
+      dot = e.approved ? "ok" : "bad"; h = `${e.gate === "plan_approval" ? "Plan" : "Diff"} ${e.approved ? "approved" : "rejected"}`; break;
+    case "quota_exceeded":
+      dot = "warn"; h = "Daily token budget reached — using local model"; break;
+    case "task_finished":
+      dot = e.status === "COMPLETED" ? "ok" : (e.status === "CANCELLED" ? "" : "bad");
+      h = `Run ${esc((e.status || "").toLowerCase())}`; sub = esc(e.summary || e.error || "");
+      break;
+    default:
+      h = esc(e.type);
+  }
+  return `<li class="ev ${nested ? "nested" : ""}">${t}<div class="dot ${dot}"></div><div class="body"><div class="h">${h}</div>${sub ? `<div class="sub">${sub}</div>` : ""}${more}</div></li>`;
+}
+
+function planHTML(p) {
+  return `<div class="kv" style="margin:8px 0"><div class="k">Feature</div><div>${esc(p.feature_name)}</div>
+    <div class="k">Overview</div><div>${esc(p.architecture_overview)}</div>
+    <div class="k">Platforms</div><div>${esc((p.target_platforms || []).join(", "))}</div>
+    ${p.dependencies && p.dependencies.length ? `<div class="k">Dependencies</div><div class="mono">${p.dependencies.map(esc).join("<br>")}</div>` : ""}</div>
+    <table><tr><th>File</th><th>Agent</th><th>Source set</th><th>Purpose</th></tr>
+    ${p.files.map(f => `<tr><td class="mono">${esc(f.path)}</td><td>${esc(f.kind)}</td><td>${esc(f.source_set)}</td><td>${esc(f.description)}</td></tr>`).join("")}</table>`;
+}
+
+function diagTable(d) {
+  return `<table><tr><th>File</th><th>Line</th><th>Error</th><th>Agent</th></tr>${d.map(x => `<tr><td class="mono">${esc(String(x.file_path).split("/").slice(-2).join("/"))}</td><td>${x.line}:${x.column}</td><td>${esc(x.error_message)}</td><td>${esc(x.responsible_agent)}</td></tr>`).join("")}</table>`;
+}
+
+function howHTML() {
+  return `<div class="how">${HOW.map(([a, b]) => `<div class="item"><b>${esc(a)}</b><span class="help">${esc(b)}</span></div>`).join("")}</div>`;
+}
+
+function tabContent(events, s) {
+  if (tab === "timeline") {
+    return events.length ? `<ul class="tl">${events.map(e => eventHTML(e)).join("")}</ul>` : `<div class="empty">No events recorded for this run.</div>`;
+  }
+  if (tab === "plan") {
+    const p = [...events].reverse().find(e => e.plan);
+    return p ? planHTML(p.plan) : `<div class="empty">No plan yet.</div>`;
+  }
+  if (tab === "files") {
+    const latest = {};
+    for (const e of events) if (e.type === "node_finished" && e.files && e.node !== "file_writer_node") for (const f of e.files) latest[f.path] = {...f, node: e.node, ts: e.ts};
+    const files = Object.values(latest);
+    if (!files.length) return `<div class="empty">No files generated yet.</div>`;
+    return `<p class="help">Latest version of each file. Worktree branch: <span class="mono">${esc(s.branch)}</span></p>` + files.map(f => `
+      <details><summary class="mono">${esc(f.path)} · ${f.lines} lines · ${esc(NODE_LABEL[f.node] || f.node)}</summary><pre>${esc(f.content)}</pre></details>`).join("");
+  }
+  if (tab === "builds") {
+    const builds = events.filter(e => e.type === "node_finished" && e.node === "gradle_build_node");
+    const fixes = events.filter(e => e.type === "node_finished" && e.node === "diagnostic_node");
+    if (!builds.length) return `<div class="empty">No builds yet.</div>`;
+    return builds.map((b, i) => `<div class="card" style="margin-bottom:10px">
+      <h3>Attempt ${i + 1} · ${badge(b.build_status === "success" ? "COMPLETED" : "FAILED")} · ${fmtTime(b.ts)}</h3>
+      ${b.diagnostics && b.diagnostics.length ? diagTable(b.diagnostics) : `<div class="help">${esc(b.summary || "")}</div>`}
+      ${b.build_output_tail ? `<details><summary>Gradle output (tail)</summary><pre>${esc(b.build_output_tail)}</pre></details>` : ""}
+      ${fixes[i] && fixes[i].fix_notes ? `<details><summary>Diagnostic agent's fix notes</summary><pre>${esc(fixes[i].fix_notes)}</pre></details>` : ""}</div>`).join("");
+  }
+  if (tab === "llm") {
+    const calls = events.filter(e => e.type === "llm_call");
+    if (!calls.length) return `<div class="empty">No model calls yet.</div>`;
+    const by = {};
+    for (const c of calls) { const k = c.provider; (by[k] ||= {calls: 0, fails: 0, tin: 0, tout: 0, ms: 0}); by[k].calls++; by[k].fails += c.ok ? 0 : 1; by[k].tin += c.input_tokens || 0; by[k].tout += c.output_tokens || 0; by[k].ms += c.duration_ms || 0; }
+    return `<table><tr><th>Provider</th><th>Calls</th><th>Failed</th><th>Tokens in</th><th>Tokens out</th><th>Time</th></tr>
+      ${Object.entries(by).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.calls}</td><td>${v.fails}</td><td>${fmtNum(v.tin)}</td><td>${fmtNum(v.tout)}</td><td>${fmtDur(v.ms / 1000)}</td></tr>`).join("")}</table>
+      <ul class="tl" style="margin-top:12px">${calls.map(e => eventHTML(e)).join("")}</ul>`;
+  }
+  return `<p class="help">Each run goes through these steps. The pipeline above lights up live as agents work.</p>${howHTML()}`;
+}
+
+function showNewTask() {
+  mode = "new"; selected = null; detail = null;
+  history.replaceState(null, "", "#new");
+  renderRuns();
+  const o = window.__overview || {projects: {}};
+  const names = Object.keys(o.projects || {});
+  const def = o.default_project || names[0] || "";
+  let draft = "";
+  try { draft = localStorage.getItem("kmp-draft") || ""; } catch (e) {}
+  $("#main").innerHTML = `
+    <div class="title-row"><h2>New agent task</h2></div>
+    <div class="card" style="margin-top:16px"><div class="form">
+      <div><label for="nt-desc">What should the agents build?</label>
+        <textarea id="nt-desc" placeholder="e.g. Add a match history screen listing a player's last 20 games with score and rating change">${esc(draft)}</textarea></div>
+      <div><label for="nt-project">Project</label>
+        <select id="nt-project">${names.map(n => `<option value="${esc(n)}" ${n === def ? "selected" : ""}>${esc(n)} — ${esc(o.projects[n].path)}</option>`).join("")}</select></div>
+      <div><label>Platforms</label><div class="checks" id="nt-platforms"></div></div>
+      <div class="help">The agents work in an isolated git worktree on a new <span class="mono">agent/&lt;task&gt;</span> branch.
+        You'll approve the plan before any code is written, and review the diff before it's committed. Nothing is merged into your branches.</div>
+      <div class="actions"><button class="btn primary" id="nt-start">Start task</button><button class="btn" id="nt-cancel">Cancel</button><span class="error" id="nt-error"></span></div>
+    </div></div>
+    <div class="card"><h3>How it works</h3>${howHTML()}</div>`;
+  const renderPlatforms = () => {
+    const p = (o.projects[$("#nt-project").value] || {}).target_platforms || ["android", "ios"];
+    $("#nt-platforms").innerHTML = p.map(x => `<label><input type="checkbox" value="${esc(x)}" checked> ${esc(x)}</label>`).join("");
+  };
+  if (names.length) { $("#nt-project").onchange = renderPlatforms; renderPlatforms(); }
+  else $("#nt-error").textContent = "No projects configured in kmp_agent_config.yaml.";
+  $("#nt-desc").oninput = e => { try { localStorage.setItem("kmp-draft", e.target.value); } catch (_) {} };
+  $("#nt-cancel").onclick = () => { mode = "detail"; selected = tasks[0] ? tasks[0].task_id : null; selected ? select(selected) : renderEmpty(); };
+  $("#nt-start").onclick = async () => {
+    const description = $("#nt-desc").value.trim();
+    if (!description) { $("#nt-error").textContent = "Describe the feature first."; return; }
+    const platforms = [...document.querySelectorAll("#nt-platforms input:checked")].map(i => i.value);
+    $("#nt-start").disabled = true; $("#nt-error").textContent = "";
+    try {
+      const r = await postJSON("/api/tasks", {description, project: $("#nt-project").value, platforms});
+      try { localStorage.removeItem("kmp-draft"); } catch (_) {}
+      tab = "timeline";
+      await loadTasks(); select(r.task_id);
+    } catch (e) { $("#nt-error").textContent = e.message; $("#nt-start").disabled = false; }
+  };
+  $("#nt-desc").focus();
+}
+
+function diffHTML(diff) {
+  if (!diff) return `<div class="help">No changes.</div>`;
+  return `<div class="diff">${diff.split("\n").map(l => {
+    const c = l.startsWith("diff --git") ? "file" : l.startsWith("@@") ? "hunk" : (l.startsWith("+") && !l.startsWith("+++")) ? "add" : (l.startsWith("-") && !l.startsWith("---")) ? "del" : "";
+    return `<div class="${c}">${esc(l) || " "}</div>`;
+  }).join("")}</div>`;
+}
+
+function approvalHTML(s, events) {
+  if (s.status !== "WAITING") return "";
+  const g = [...events].reverse().find(e => e.type === "gate_waiting") || {};
+  const isPlan = g.gate === "plan_approval";
+  const title = isPlan ? "Approve the plan" : "Review the changes";
+  if (!s.can_approve) {
+    const where = s.source === "web" ? "The dashboard was restarted while this run waited, so it can't be resumed here." : "This run was started from a terminal — answer the prompt there.";
+    return `<div class="banner">⏸ Waiting: ${esc(title.toLowerCase())}. ${esc(where)}</div>`;
+  }
+  const body = isPlan
+    ? (g.plan ? planHTML(g.plan) : `<div class="help">The architect produced no plan.</div>`)
+      + `<p class="help">Approve to let the coder agents write these files. Reject cancels the run and deletes its branch.</p>`
+    : `<div class="kv"><div class="k">Build</div><div>${badge(g.build_status === "success" ? "COMPLETED" : "FAILED")} after ${g.iterations || 0} fix attempt(s)</div>
+       <div class="k">Worktree</div><div class="mono">${esc(g.worktree)}</div></div>${diffHTML(g.diff)}
+       <p class="help">Approve commits these changes to <span class="mono">${esc(s.branch)}</span> (not merged). Reject discards them and deletes the branch.</p>`;
+  return `<div class="card approval"><h3>⏸ ${esc(title)}</h3>${body}
+    <div class="actions"><button class="btn approve" data-gate="${esc(g.gate)}" data-ok="1">${isPlan ? "Approve plan" : "Approve & commit"}</button>
+    <button class="btn reject" data-gate="${esc(g.gate)}" data-ok="0">Reject</button><span class="error" id="gate-error"></span></div></div>`;
+}
+
+async function decide(btn) {
+  const approved = btn.dataset.ok === "1";
+  if (!approved && !confirm("Reject and discard this run?")) return;
+  document.querySelectorAll(".approval .btn").forEach(b => b.disabled = true);
+  try { await postJSON(`/api/tasks/${encodeURIComponent(selected)}/gate`, {gate: btn.dataset.gate, approved}); await loadDetail(); }
+  catch (e) { $("#gate-error").textContent = e.message; document.querySelectorAll(".approval .btn").forEach(b => b.disabled = false); }
+}
+
+function renderDetail() {
+  if (!detail) return;
+  const s = detail.summary, ev = detail.events;
+  // Keep open <details> and scroll position across live refreshes
+  const open = [...document.querySelectorAll("#main details")].map(d => d.open);
+  const banner = s.status === "WAITING" ? approvalHTML(s, ev)
+    : s.status === "STALE" ? `<div class="banner">This run stopped without finishing — the process running it was closed.</div>` : "";
+  const tabs = [["timeline", "Timeline"], ["plan", "Plan"], ["files", "Files"], ["builds", "Builds"], ["llm", "Model calls"], ["how", "How it works"]];
+  $("#main").innerHTML = `
+    <div class="title-row"><h2>${esc(s.description || s.task_id)}</h2>${s.status === "RUNNING" ? '<span class="pulse" style="margin-top:9px"></span>' : ""}${badge(s.status)}</div>
+    <div class="stats">
+      <div class="stat"><div class="k">Task</div><div class="v mono">${esc(s.task_id)}</div></div>
+      <div class="stat"><div class="k">Project</div><div class="v">${esc(s.project || "this repo")}</div></div>
+      <div class="stat"><div class="k">Now</div><div class="v">${s.running_node ? esc(NODE_LABEL[s.running_node] || s.running_node) : (s.status === "WAITING" ? "Your approval" : "—")}</div></div>
+      <div class="stat"><div class="k">Duration</div><div class="v" id="dur">${fmtDur(s.duration_s)}</div></div>
+      <div class="stat"><div class="k">Model calls</div><div class="v">${s.llm_calls}${s.llm_failures ? ` <span style="color:var(--bad);font-size:12px">(${s.llm_failures} failed)</span>` : ""}</div></div>
+      <div class="stat"><div class="k">Tokens</div><div class="v">${fmtNum(s.tokens)}</div></div>
+      <div class="stat"><div class="k">Builds</div><div class="v">${s.build_attempts}${s.build_status ? ` · ${esc(s.build_status)}` : ""}</div></div>
+      <div class="stat"><div class="k">Branch</div><div class="v mono">${esc(s.branch)}</div></div>
+    </div>
+    ${banner}
+    <div class="card"><h3>Pipeline</h3>${pipelineHTML(ev, s)}</div>
+    <div class="card"><div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${tab === k ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+      <div id="tab-body">${tabContent(ev, s)}</div></div>`;
+  document.querySelectorAll(".approval .btn").forEach(b => b.onclick = () => decide(b));
+  document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+    tab = b.dataset.tab; try { localStorage.setItem("kmp-tab", tab); } catch (e) {}
+    renderDetail();
+  });
+  const details = document.querySelectorAll("#main details");
+  if (open.length === details.length) details.forEach((d, i) => { if (open[i]) d.open = true; });
+}
+
+$("#search").addEventListener("input", renderRuns);
+$("#new-btn").onclick = showNewTask;
+async function tick() {
+  await loadTasks();
+  if (mode === "new") return;
+  const cur = tasks.find(t => t.task_id === selected);
+  // Only refetch the open run while it is still changing (or on first load)
+  if (selected && (!detail || !cur || ["RUNNING", "WAITING"].includes(cur.status) || cur.updated_at !== detail.summary.updated_at)) await loadDetail();
+}
+loadOverview().then(() => { if (location.hash === "#new") showNewTask(); else tick(); });
+setInterval(tick, 2000);
+setInterval(loadOverview, 10000);
+</script>
+</body>
+</html>

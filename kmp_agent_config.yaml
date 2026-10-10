@@ -1,7 +1,22 @@
 version: "1.0"
 models:
-  # Choose active cloud provider: "deepseek", "anthropic" (Claude), or "gemini"
-  cloud_provider: "deepseek"
+  # Choose active cloud provider:
+  #   Subscription (no API key, uses your logged-in CLI account):
+  #     "claude_code" -> Claude Pro/Max via `claude` CLI (run `claude` once and /login)
+  #     "gemini_cli"  -> Google AI Pro via `gemini` CLI (run `gemini` once and sign in with Google)
+  #   API key: "deepseek", "anthropic", or "gemini"
+  cloud_provider: "claude_code"
+
+  # Tried in order if the primary provider fails or hits its usage limit; Ollama is the last resort
+  # "gemini" = Google AI Studio API key (free tier). "gemini_cli" currently fails for
+  # personal Google accounts (Google retired Gemini CLI for individuals in favour of Antigravity).
+  fallback_providers:
+    - "gemini"
+
+  # Subscription CLI models ("sonnet" / "opus" aliases for Claude; empty = Gemini CLI default)
+  claude_code_model: "sonnet"
+  gemini_cli_model: ""
+  cli_timeout_seconds: 600
   
   # Provider Models:
   deepseek_model: "deepseek-chat"
@@ -17,6 +32,22 @@ models:
   local_provider: "ollama"
   local_model: "qwen2.5-coder:14b"
   ollama_base_url: "http://localhost:11434"
+
+# Existing KMP apps the agents can work on: `python cli.py new-task "..." --project smashly`
+default_project: "smashly"
+projects:
+  smashly:
+    path: "~/Badminton Rating and Game Inviation and expenses dive"  # git repo root
+    gradle_subdir: "kmp"           # where gradlew / settings.gradle.kts live inside the repo
+    base_branch: "main"            # agent branches are cut from here; never merged automatically
+    target_platforms: ["android", "ios"]
+    gradle_tasks:                  # build verification (fast compile checks, not full `check`)
+      - ":composeApp:compileDebugKotlinAndroid"
+      - ":composeApp:compileKotlinIosSimulatorArm64"
+      - ":composeApp:testDebugUnitTest"   # runs commonTest on the JVM
+    copy_untracked:                # git-ignored files the build needs, copied into each worktree
+      - "kmp/local.properties"
+      - "kmp/composeApp/google-services.json"
 
 kmp:
   target_platforms:

@@ -5,6 +5,7 @@ from state import KMPGraphState, KMPFileSpec
 from models.hybrid_router import HybridModelRouter
 from models.prompt_templates import CORE_DOMAIN_SYSTEM_PROMPT
 from skills.skill_registry import KMPSkillRegistry
+from nodes.project_context import coder_prompt, extract_code
 
 def core_domain_node(state: KMPGraphState) -> Dict[str, Any]:
     """Agent 2: Core Domain Specialist generates pure Kotlin shared logic in commonMain."""
@@ -19,18 +20,13 @@ def core_domain_node(state: KMPGraphState) -> Dict[str, Any]:
 
     generated_files: Dict[str, KMPFileSpec] = {}
     for spec in plan.shared_contracts:
-        prompt = f"Implement shared domain file: {spec.file_path}\nDescription: {spec.description}\n\n{skill_context}"
+        prompt = coder_prompt(state, spec, "Implement shared domain file", skill_context, generated_files)
         res = router.invoke([
             SystemMessage(content=CORE_DOMAIN_SYSTEM_PROMPT),
             HumanMessage(content=prompt)
         ])
         
-        # Clean content from response
-        clean_code = res.content
-        if "```kotlin" in clean_code:
-            clean_code = clean_code.split("```kotlin")[1].split("```")[0].strip()
-        elif "```" in clean_code:
-            clean_code = clean_code.split("```")[1].split("```")[0].strip()
+        clean_code = extract_code(res.content)
 
         generated_files[spec.file_path] = KMPFileSpec(
             file_path=spec.file_path,

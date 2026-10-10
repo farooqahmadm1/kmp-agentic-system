@@ -1,4 +1,4 @@
-.PHONY: help install test health init tui run docker-up docker-down clean
+.PHONY: help install test health init tui web run docker-up docker-down clean
 
 help:
 	@echo "Available commands:"
@@ -7,6 +7,7 @@ help:
 	@echo "  make health      - Run pre-flight health check (Ollama & Cloud)"
 	@echo "  make init        - Scaffold a fresh Kotlin Multiplatform project"
 	@echo "  make tui         - Launch interactive Textual TUI dashboard"
+	@echo "  make web         - Launch web dashboard at http://127.0.0.1:8765"
 	@echo "  make docker-up   - Launch multi-agent orchestrator & Ollama in Docker"
 	@echo "  make docker-down - Stop Docker containers"
 	@echo "  make clean       - Remove cache and temporary test files"
@@ -26,6 +27,9 @@ init:
 
 tui:
 	python3 cli.py tui
+
+web:
+	python3 cli.py web
 
 docker-up:
 	docker compose up -d

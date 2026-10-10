@@ -83,34 +83,36 @@ def cmd_session_list():
             print(f"- Task ID: {s['task_id']} | Branch: {s['branch_name']} | Status: {s['status']} | Desc: {s['task_description']}")
         print("========================================================")
 
-def cmd_new_task(task_id: Optional[str], description: str, platforms: list):
+def _confirm(question: str) -> bool:
+    if HAS_RICH:
+        return Confirm.ask(question, default=True)
+    return input(f"{question} [Y/n] ").strip().lower() in ("", "y", "yes")
+
+def _terminal_approve(gate: str, info: dict) -> bool:
+    """HITL gates answered in the terminal."""
+    if gate == "plan_approval":
+        plan = info.get("plan")
+        if plan:
+            console.print(f"\n📐 Plan: {plan['feature_name']}\n{plan['architecture_overview']}")
+            for f in plan["files"]:
+                console.print(f"   • {f['path']} — {f['description']}")
+        return _confirm("Approve this plan and generate code?")
+    console.print(f"\n🔍 Build status: {info['build_status'].upper()} after {info['iterations']} fix iteration(s)")
+    console.print(f"   Worktree: {info['worktree']}")
+    for path in info["files"]:
+        console.print(f"   • {path}")
+    return _confirm("Commit these changes to the agent branch?")
+
+def cmd_new_task(task_id: Optional[str], description: str, platforms: list, project_name: Optional[str]):
     """Launches a new KMP feature development task with interactive HITL gates."""
-    from graph import create_kmp_graph
-    
-    tid = task_id or f"task-{uuid.uuid4().hex[:8]}"
-    console.print(f"🚀 Launching KMP Feature Task: {tid}\nDescription: {description}")
-    
-    app = create_kmp_graph()
-    app_config = {"configurable": {"thread_id": tid}}
+    from task_runner import run_task, new_task_id
 
-    initial_state = {
-        "messages": [],
-        "task_id": tid,
-        "task_description": description,
-        "target_platforms": platforms or config.target_platforms,
-        "workspace_root": ".",
-        "iteration_count": 0,
-        "max_iterations": config.max_self_healing_iterations,
-        "build_status": "pending",
-        "compiler_diagnostics": []
-    }
-
-    # Execute graph with stream
-    for event in app.stream(initial_state, config=app_config):
-        for node_name, state_update in event.items():
-            console.print(f"  ✓ Completed node: {node_name}")
-
-    console.print(f"\n🎉 Task '{tid}' execution cycle completed successfully!")
+    project = config.get_project(project_name or "")
+    tid = task_id or new_task_id()
+    target = f"{project['name']} ({project['path']})" if project else "this repository"
+    console.print(f"🚀 Launching KMP Feature Task: {tid}\nTarget: {target}\nDescription: {description}")
+    run_task(tid, description, project.get("name", ""), platforms, _terminal_approve,
+             source="cli", out=console.print)
 
 def cmd_init_starter(app_name: str, package_name: str):
     """Scaffolds a production-grade Kotlin 2.x + Compose Multiplatform starter template."""
@@ -142,6 +144,10 @@ def main():
     # tui
     subparsers.add_parser("tui", help="Launch interactive Terminal UI dashboard")
 
+    # web
+    web_parser = subparsers.add_parser("web", help="Launch the web dashboard (live runs + history)")
+    web_parser.add_argument("--port", type=int, default=8765)
+
     # session
     session_parser = subparsers.add_parser("session", help="Manage sessions")
     session_sub = session_parser.add_subparsers(dest="session_command")
@@ -152,6 +158,7 @@ def main():
     task_parser.add_argument("description", type=str, help="Feature description prompt")
     task_parser.add_argument("--id", type=str, default=None, help="Custom Task ID")
     task_parser.add_argument("--targets", nargs="+", default=None, help="Target platforms (android ios desktop wasmJs)")
+    task_parser.add_argument("--project", type=str, default=None, help="Target project from kmp_agent_config.yaml (default: default_project)")
 
     args = parser.parse_args()
 
@@ -161,10 +168,13 @@ def main():
         cmd_init_starter(args.name, args.package)
     elif args.command == "tui":
         cmd_tui()
+    elif args.command == "web":
+        from ui.web_dashboard import serve
+        serve(port=args.port)
     elif args.command == "session" and getattr(args, "session_command", None) == "list":
         cmd_session_list()
     elif args.command == "new-task":
-        cmd_new_task(args.id, args.description, args.targets)
+        cmd_new_task(args.id, args.description, args.targets, args.project)
     else:
         parser.print_help()
 

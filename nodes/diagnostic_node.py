@@ -33,5 +33,6 @@ def diagnostic_node(state: KMPGraphState) -> Dict[str, Any]:
 
     return {
         "iteration_count": iteration,
+        "fix_notes": res.content,
         "messages": [AIMessage(content=f"Diagnostic QA Agent evaluated errors (Iteration {iteration}). Applied fix strategy: {res.content[:200]}...")]
     }

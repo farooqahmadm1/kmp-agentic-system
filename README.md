@@ -79,6 +79,26 @@ If you do not want to use any cloud provider or API keys:
 
 ---
 
+## 🖥️ Web Dashboard & Working on an Existing App
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python cli.py web          # http://127.0.0.1:8765
+```
+
+- **New task** starts a run on a project from `projects:` in `kmp_agent_config.yaml` (e.g. `smashly`).
+- **Approve plan / Approve & commit** buttons answer the two human-in-the-loop gates.
+- Every run's steps, model calls (prompt + response), generated files, builds and test failures are kept in
+  `.logs/trajectory/<task>.jsonl` and browsable as history.
+- Agents work in a git worktree under `.worktrees/<project>/<task>` on branch `agent/<task>`; nothing is merged into
+  your branches — review and merge the branch yourself.
+- The terminal flow still works: `.venv/bin/python cli.py new-task "..." --project smashly`.
+- `cloud_provider: "claude_code"` uses your Claude Pro/Max subscription through the logged-in `claude` CLI.
+
+The dashboard has no authentication and only listens on localhost — don't expose it to a network as-is.
+
+---
+
 ## 🏛️ System Topology & Workflow
 
 ```mermaid

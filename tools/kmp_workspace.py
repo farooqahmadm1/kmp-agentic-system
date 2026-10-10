@@ -13,7 +13,8 @@ class KMPWorkspaceManager:
         """Safely writes a file to the workspace while enforcing path boundary sandbox."""
         safe_path = PathSandbox.validate_safe_path(file_spec.file_path, str(self.root))
         safe_path.parent.mkdir(parents=True, exist_ok=True)
-        safe_path.write_text(file_spec.content, encoding="utf-8")
+        content = file_spec.content if file_spec.content.endswith("\n") else file_spec.content + "\n"
+        safe_path.write_text(content, encoding="utf-8")
         return f"Successfully wrote {file_spec.file_path}"
 
     def read_file(self, rel_path: str) -> Optional[str]:

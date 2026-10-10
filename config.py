@@ -7,7 +7,8 @@ try:
 except ImportError:
     yaml = None
 
-CONFIG_PATH = Path("kmp_agent_config.yaml")
+REPO_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = REPO_ROOT / "kmp_agent_config.yaml"
 
 class AppConfig:
     def __init__(self, config_dict: Dict[str, Any]):
@@ -21,6 +22,12 @@ class AppConfig:
         self.deepseek_model = models.get("deepseek_model", "deepseek-chat")
         self.anthropic_model = models.get("anthropic_model", "claude-3-5-sonnet-latest")
         self.gemini_model = models.get("gemini_model", "gemini-2.0-flash")
+
+        # Subscription CLI providers ("claude_code" / "gemini_cli") - no API key needed
+        self.claude_code_model = models.get("claude_code_model", "sonnet")
+        self.gemini_cli_model = models.get("gemini_cli_model", "")
+        self.cli_timeout = int(models.get("cli_timeout_seconds", 600))
+        self.fallback_providers: List[str] = [p.lower() for p in models.get("fallback_providers", [])]
         
         # API Keys from environment
         self.deepseek_api_key = os.getenv(models.get("deepseek_api_key_env", "DEEPSEEK_API_KEY"), "")
@@ -45,18 +52,39 @@ class AppConfig:
         self.owasp_enforcement = bool(guardrails.get("owasp_keychain_keystore_enforcement", True))
         self.max_self_healing_iterations = int(guardrails.get("max_self_healing_iterations", 5))
 
+        # Target projects the agents work on (empty = scaffold/work in this repo)
+        self.projects: Dict[str, Dict[str, Any]] = config_dict.get("projects", {}) or {}
+        self.default_project: str = config_dict.get("default_project", "") or ""
+
         # Paths
         paths = config_dict.get("paths", {})
-        self.sessions_dir = Path(paths.get("sessions_dir", ".sessions"))
-        self.worktrees_dir = Path(paths.get("worktrees_dir", ".worktrees"))
-        self.logs_dir = Path(paths.get("logs_dir", ".logs"))
-        self.skills_dir = Path(paths.get("skills_dir", "skills"))
+        self.sessions_dir = REPO_ROOT / paths.get("sessions_dir", ".sessions")
+        self.worktrees_dir = REPO_ROOT / paths.get("worktrees_dir", ".worktrees")
+        self.logs_dir = REPO_ROOT / paths.get("logs_dir", ".logs")
+        self.skills_dir = REPO_ROOT / paths.get("skills_dir", "skills")
 
         # Ensure essential directories exist
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
         self.worktrees_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
+
+    def get_project(self, name: str = "") -> Dict[str, Any]:
+        """Resolves a target project entry; returns {} when running against this repo itself."""
+        name = name or self.default_project
+        if not name:
+            return {}
+        if name not in self.projects:
+            raise KeyError(f"Unknown project '{name}'. Configured: {', '.join(self.projects) or 'none'}")
+        proj = dict(self.projects[name])
+        proj["name"] = name
+        proj["path"] = str(Path(os.path.expanduser(proj["path"])).resolve())
+        proj.setdefault("gradle_subdir", "")
+        proj.setdefault("base_branch", "main")
+        proj.setdefault("gradle_tasks", ["check"])
+        proj.setdefault("copy_untracked", [])
+        proj.setdefault("target_platforms", self.target_platforms)
+        return proj
 
 def load_config() -> AppConfig:
     data = {}

@@ -83,13 +83,18 @@ class EpisodicMemoryStore:
             
             cursor.execute("SELECT * FROM error_recipes")
             rows = cursor.fetchall()
-            for row in rows:
-                sig = row["error_signature"]
-                if sig.lower() in error_message.lower():
-                    conn.execute("UPDATE error_recipes SET hit_count = hit_count + 1 WHERE id = ?", (row["id"],))
-                    conn.commit()
-                    return dict(row)
-        return None
+            message = error_message.lower()
+            matches = [row for row in rows if row["error_signature"].lower() in message]
+            if not matches:
+                return None
+
+            # Prefer the most specific (longest) signature so a learned fix like
+            # "Missing actual declaration for expect fun getBattery()" beats the
+            # broad seeded "Missing actual declaration" recipe.
+            best = max(matches, key=lambda row: len(row["error_signature"]))
+            conn.execute("UPDATE error_recipes SET hit_count = hit_count + 1 WHERE id = ?", (best["id"],))
+            conn.commit()
+            return dict(best)
 
     def record_solution(self, error_signature: str, category: str, root_cause: str, recipe: str):
         """Saves a newly resolved compiler error and its solution recipe to episodic memory."""

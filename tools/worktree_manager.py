@@ -1,7 +1,7 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from config import config, REPO_ROOT
 
@@ -88,12 +88,28 @@ class KMPWorktreeManager:
             self._git("worktree", "remove", "--force", str(worktree_path))
         self._git("worktree", "prune")
 
-    def merge_and_prune(self, task_id: str, target_branch: str = "main") -> bool:
-        """Merges the task branch into target_branch. Only used for the self-hosted (no project) mode."""
+    def merge_and_prune(self, task_id: str, target_branch: Optional[str] = None) -> Tuple[bool, str]:
+        """Merges the task branch into target_branch (default: base_branch). Self-hosted mode only.
+
+        Never switches branches or touches uncommitted work: the main checkout must already be on
+        target_branch with a clean working tree, otherwise the agent branch is left for review.
+        Returns (merged, reason).
+        """
         if self.project:
             raise RuntimeError("Refusing to auto-merge into a target project; review the agent branch instead")
+        target_branch = target_branch or self.base_branch
         branch_name = f"agent/{task_id}"
-        self._git("checkout", target_branch)
-        merge_res = self._git("merge", branch_name)
+        current = self._git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        if current != target_branch:
+            self.remove_worktree(task_id)
+            return False, f"checkout is on '{current}', not '{target_branch}'"
+        if self._git("status", "--porcelain", "--untracked-files=no").stdout.strip():
+            self.remove_worktree(task_id)
+            return False, "checkout has uncommitted changes"
+        merge_res = self._git("merge", "--no-edit", branch_name)
+        if merge_res.returncode != 0:
+            self._git("merge", "--abort")
+            self.remove_worktree(task_id)
+            return False, f"merge failed: {(merge_res.stderr or merge_res.stdout).strip()[-300:]}"
         self.remove_worktree(task_id)
-        return merge_res.returncode == 0
+        return True, ""

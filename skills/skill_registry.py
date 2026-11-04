@@ -17,7 +17,11 @@ class KMPSkill:
 class KMPSkillRegistry:
     """Discovers, indexes, and progressively injects modular KMP skills."""
 
-    def __init__(self, skills_dir: str = "skills"):
+    def __init__(self, skills_dir: Optional[str] = None):
+        # Resolve against the configured skills dir, not the current working directory
+        if skills_dir is None:
+            from config import config
+            skills_dir = str(config.skills_dir)
         self.skills_dir = Path(skills_dir)
         self.skills: Dict[str, KMPSkill] = {}
         self._load_skills()
@@ -63,6 +67,7 @@ class KMPSkillRegistry:
         """Progressively injects only the skills relevant to the current LangGraph node."""
         node_map = {
             "compose_ui_node": ["compose-multiplatform-ui", "kmp-owasp-security"],
+            "architect_node": ["kmp-expect-actual", "kmp-gradle-catalog", "kmp-networking-storage"],
             "native_bridge_node": ["kmp-expect-actual", "kmp-native-interop", "kmp-owasp-security"],
             "core_domain_node": ["kmp-networking-storage", "kmp-owasp-security"],
             "gradle_build_node": ["kmp-gradle-catalog"],

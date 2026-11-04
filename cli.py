@@ -44,16 +44,20 @@ def cmd_health():
             "[green]ONLINE[/green]" if res["ollama_active"] else "[red]OFFLINE[/red]",
             res["ollama_message"]
         )
-        table.add_row(
-            "Active Cloud Provider",
-            f"[green]{config.cloud_provider.upper()}[/green]",
-            f"Daily Quota: {res['daily_token_limit']:,} tokens"
-        )
+        for i, prov in enumerate(res["providers"]):
+            table.add_row(
+                "Cloud Provider" if i == 0 else "Fallback Provider",
+                f"[green]{prov['name'].upper()}[/green]" if prov["ok"] else f"[red]{prov['name'].upper()}[/red]",
+                prov["message"]
+            )
+        table.add_row("Daily Cloud Quota", "", f"{res['daily_token_limit']:,} tokens (all cloud providers)")
         console.print(table)
     else:
         print("================== Pre-Flight Health Check ==================")
         print(f"Local Ollama:   {'ONLINE' if res['ollama_active'] else 'OFFLINE'} - {res['ollama_message']}")
-        print(f"Cloud Provider: {config.cloud_provider.upper()} - Daily Quota: {res['daily_token_limit']:,} tokens")
+        for prov in res["providers"]:
+            print(f"Provider {prov['name']}: {'OK' if prov['ok'] else 'UNAVAILABLE'} - {prov['message']}")
+        print(f"Daily cloud quota: {res['daily_token_limit']:,} tokens (all cloud providers)")
         print("=============================================================")
 
 def cmd_session_list():
@@ -96,6 +100,8 @@ def _terminal_approve(gate: str, info: dict) -> bool:
             console.print(f"\n📐 Plan: {plan['feature_name']}\n{plan['architecture_overview']}")
             for f in plan["files"]:
                 console.print(f"   • {f['path']} — {f['description']}")
+            for warning in plan.get("dependency_warnings", []):
+                console.print(f"   ⚠️  {warning}")
         return _confirm("Approve this plan and generate code?")
     console.print(f"\n🔍 Build status: {info['build_status'].upper()} after {info['iterations']} fix iteration(s)")
     console.print(f"   Worktree: {info['worktree']}")
@@ -105,10 +111,14 @@ def _terminal_approve(gate: str, info: dict) -> bool:
 
 def cmd_new_task(task_id: Optional[str], description: str, platforms: list, project_name: Optional[str]):
     """Launches a new KMP feature development task with interactive HITL gates."""
-    from task_runner import run_task, new_task_id
+    from task_runner import run_task, new_task_id, validate_task_id
 
     project = config.get_project(project_name or "")
-    tid = task_id or new_task_id()
+    try:
+        tid = validate_task_id(task_id) if task_id else new_task_id()
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(2)
     target = f"{project['name']} ({project['path']})" if project else "this repository"
     console.print(f"🚀 Launching KMP Feature Task: {tid}\nTarget: {target}\nDescription: {description}")
     run_task(tid, description, project.get("name", ""), platforms, _terminal_approve,

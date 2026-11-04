@@ -5,7 +5,7 @@ from state import KMPGraphState, KMPFileSpec
 from models.hybrid_router import HybridModelRouter
 from models.prompt_templates import NATIVE_BRIDGE_SYSTEM_PROMPT
 from skills.skill_registry import KMPSkillRegistry
-from nodes.project_context import coder_prompt, extract_code
+from nodes.project_context import coder_prompt, extract_code, files_to_regenerate, keep_or_regenerate
 
 def native_bridge_node(state: KMPGraphState) -> Dict[str, Any]:
     """Agent 4: Native Bridge Specialist generates expect/actual declarations across platforms."""
@@ -19,6 +19,7 @@ def native_bridge_node(state: KMPGraphState) -> Dict[str, Any]:
     router = HybridModelRouter(task_id=task_id)
 
     generated_files: Dict[str, KMPFileSpec] = {}
+    targets = files_to_regenerate(state)  # on retries, only the files that need fixing
     for bridge in plan.bridges:
         # 1. Expect declaration
         exp = bridge.expect_declaration
@@ -26,6 +27,10 @@ def native_bridge_node(state: KMPGraphState) -> Dict[str, Any]:
         
         # 2. Actual implementations
         for plat, act in bridge.actual_implementations.items():
+            kept = keep_or_regenerate(state, act, targets)
+            if kept:
+                generated_files[act.file_path] = kept
+                continue
             prompt = coder_prompt(
                 state, act,
                 f"Implement the Kotlin 2.x 'actual' for {bridge.interface_name} on {plat}, matching this expect declaration:\n"
@@ -38,11 +43,12 @@ def native_bridge_node(state: KMPGraphState) -> Dict[str, Any]:
                 HumanMessage(content=prompt)
             ])
             clean_code = extract_code(res.content)
+            previous = (state.get("files") or {}).get(act.file_path)
 
             generated_files[act.file_path] = KMPFileSpec(
                 file_path=act.file_path,
                 source_set=act.source_set,
-                content=clean_code if clean_code else act.content,
+                content=clean_code or (previous.content if previous else act.content),
                 description=act.description
             )
 

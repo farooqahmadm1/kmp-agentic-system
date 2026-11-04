@@ -1,3 +1,4 @@
+import shutil
 import urllib.request
 import json
 from typing import Dict, Any, Tuple
@@ -5,7 +6,7 @@ from typing import Dict, Any, Tuple
 from config import config
 
 class HealthChecker:
-    """Pre-flight detector for Ollama daemon, VRAM, and DeepSeek API connectivity."""
+    """Pre-flight detector for the Ollama daemon and every cloud provider in the chain."""
 
     @classmethod
     def check_ollama(cls) -> Tuple[bool, str, list]:
@@ -25,14 +26,30 @@ class HealthChecker:
         return False, "Ollama check returned unexpected status.", []
 
     @classmethod
+    def check_provider(cls, name: str) -> Tuple[bool, str]:
+        """Whether a cloud provider in the chain is usable: its CLI is on PATH or its API key is set."""
+        clis = {"claude_code": "claude", "gemini_cli": "gemini"}
+        if name in clis:
+            found = shutil.which(clis[name]) is not None
+            return found, f"`{clis[name]}` CLI {'found' if found else 'NOT found'} on PATH"
+        keys = {"anthropic": config.anthropic_api_key, "gemini": config.gemini_api_key, "deepseek": config.deepseek_api_key}
+        if name in keys:
+            return bool(keys[name]), "API key set" if keys[name] else "API key NOT set"
+        return False, "unknown provider"
+
+    @classmethod
     def check_all(cls) -> Dict[str, Any]:
         ollama_ok, ollama_msg, models = cls.check_ollama()
-        has_deepseek = bool(config.deepseek_api_key)
+        providers = []
+        for name in [config.cloud_provider, *config.fallback_providers]:
+            ok, msg = cls.check_provider(name)
+            providers.append({"name": name, "ok": ok, "message": msg})
         return {
             "ollama_active": ollama_ok,
             "ollama_message": ollama_msg,
             "ollama_models": models,
-            "deepseek_configured": has_deepseek,
+            "providers": providers,
+            "deepseek_configured": bool(config.deepseek_api_key),
             "daily_token_limit": config.daily_token_limit,
-            "all_systems_go": ollama_ok or has_deepseek
+            "all_systems_go": ollama_ok or any(p["ok"] for p in providers)
         }

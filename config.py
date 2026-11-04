@@ -9,6 +9,8 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = REPO_ROOT / "kmp_agent_config.yaml"
+# Git-ignored per-machine overrides (your own projects, model choices), merged over CONFIG_PATH
+LOCAL_CONFIG_PATH = REPO_ROOT / "kmp_agent_config.local.yaml"
 
 class AppConfig:
     def __init__(self, config_dict: Dict[str, Any]):
@@ -20,8 +22,8 @@ class AppConfig:
         
         # Models per provider
         self.deepseek_model = models.get("deepseek_model", "deepseek-chat")
-        self.anthropic_model = models.get("anthropic_model", "claude-3-5-sonnet-latest")
-        self.gemini_model = models.get("gemini_model", "gemini-2.0-flash")
+        self.anthropic_model = models.get("anthropic_model", "claude-sonnet-5-5")
+        self.gemini_model = models.get("gemini_model", "gemini-flash-latest")
 
         # Subscription CLI providers ("claude_code" / "gemini_cli") - no API key needed
         self.claude_code_model = models.get("claude_code_model", "sonnet")
@@ -35,6 +37,8 @@ class AppConfig:
         self.gemini_api_key = os.getenv(models.get("gemini_api_key_env", "GEMINI_API_KEY"), os.getenv("GOOGLE_API_KEY", ""))
 
         self.daily_token_limit = int(models.get("daily_token_limit", 150000))
+        # USD per 1M (input, output) tokens by provider prefix; None = TokenBudgetManager defaults
+        self.pricing = models.get("pricing_usd_per_million")
         self.local_provider = models.get("local_provider", "ollama")
         self.local_model = models.get("local_model", "qwen2.5-coder:14b")
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", models.get("ollama_base_url", "http://localhost:11434"))
@@ -51,6 +55,8 @@ class AppConfig:
         self.hitl_diff_review = bool(guardrails.get("hitl_diff_review", True))
         self.owasp_enforcement = bool(guardrails.get("owasp_keychain_keystore_enforcement", True))
         self.max_self_healing_iterations = int(guardrails.get("max_self_healing_iterations", 5))
+        # Dry runs only: without a gradlew, report a simulated pass instead of failing (never auto-merged)
+        self.allow_simulated_build = bool(guardrails.get("allow_simulated_build", False))
 
         # Target projects the agents work on (empty = scaffold/work in this repo)
         self.projects: Dict[str, Dict[str, Any]] = config_dict.get("projects", {}) or {}
@@ -84,16 +90,29 @@ class AppConfig:
         proj.setdefault("gradle_tasks", ["check"])
         proj.setdefault("copy_untracked", [])
         proj.setdefault("target_platforms", self.target_platforms)
+        proj.setdefault("allowed_paths", None)  # None = PathSandbox.DEFAULT_ALLOWED_PREFIXES
         return proj
 
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+def _read_yaml(path: Path) -> Dict[str, Any]:
+    if not path.exists() or yaml is None:
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"Warning: could not read {path.name}: {e}")
+        return {}
+
 def load_config() -> AppConfig:
-    data = {}
-    if CONFIG_PATH.exists() and yaml is not None:
-        try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
-        except Exception:
-            data = {}
-    return AppConfig(data)
+    return AppConfig(_deep_merge(_read_yaml(CONFIG_PATH), _read_yaml(LOCAL_CONFIG_PATH)))
 
 config = load_config()

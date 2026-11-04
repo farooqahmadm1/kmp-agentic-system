@@ -24,6 +24,9 @@ def init_node(state: KMPGraphState) -> Dict[str, Any]:
         "target_platforms": state.get("target_platforms") or project.get("target_platforms", config.target_platforms),
         "iteration_count": 0,
         "build_status": "pending",
+        "build_simulated": False,
+        "build_fatal": False,
+        "security_report": None,
         "files": {},
         "fix_notes": "",
         "compiler_diagnostics": []

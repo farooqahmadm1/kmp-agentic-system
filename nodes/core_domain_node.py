@@ -5,7 +5,7 @@ from state import KMPGraphState, KMPFileSpec
 from models.hybrid_router import HybridModelRouter
 from models.prompt_templates import CORE_DOMAIN_SYSTEM_PROMPT
 from skills.skill_registry import KMPSkillRegistry
-from nodes.project_context import coder_prompt, extract_code
+from nodes.project_context import coder_prompt, extract_code, files_to_regenerate, keep_or_regenerate
 
 def core_domain_node(state: KMPGraphState) -> Dict[str, Any]:
     """Agent 2: Core Domain Specialist generates pure Kotlin shared logic in commonMain."""
@@ -19,7 +19,12 @@ def core_domain_node(state: KMPGraphState) -> Dict[str, Any]:
     router = HybridModelRouter(task_id=task_id)
 
     generated_files: Dict[str, KMPFileSpec] = {}
+    targets = files_to_regenerate(state)  # on retries, only the files that need fixing
     for spec in plan.shared_contracts:
+        kept = keep_or_regenerate(state, spec, targets)
+        if kept:
+            generated_files[spec.file_path] = kept
+            continue
         prompt = coder_prompt(state, spec, "Implement shared domain file", skill_context, generated_files)
         res = router.invoke([
             SystemMessage(content=CORE_DOMAIN_SYSTEM_PROMPT),
@@ -27,11 +32,12 @@ def core_domain_node(state: KMPGraphState) -> Dict[str, Any]:
         ])
         
         clean_code = extract_code(res.content)
+        previous = (state.get("files") or {}).get(spec.file_path)
 
         generated_files[spec.file_path] = KMPFileSpec(
             file_path=spec.file_path,
             source_set=spec.source_set,
-            content=clean_code if clean_code else spec.content,
+            content=clean_code or (previous.content if previous else spec.content),
             description=spec.description
         )
 

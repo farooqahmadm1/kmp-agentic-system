@@ -8,9 +8,10 @@ from state import CompilerDiagnostic
 class GradleBuildRunner:
     """Agent 8: Executes isolated Gradle tasks and parses Kotlin compiler diagnostics."""
 
-    def __init__(self, workspace_root: str, require_gradlew: bool = False, timeout: int = 1800):
+    def __init__(self, workspace_root: str, allow_simulated: bool = False, timeout: int = 1800):
         self.root = Path(workspace_root).resolve()
-        self.require_gradlew = require_gradlew
+        # Only for dry runs without a Gradle project: report a simulated pass instead of failing
+        self.allow_simulated = allow_simulated
         # A fresh worktree has a cold Gradle/Kotlin-Native cache, so the first build can be slow
         self.timeout = timeout
 
@@ -20,20 +21,21 @@ class GradleBuildRunner:
         task = " ".join(tasks)
         gradlew = self.root / ("gradlew.bat" if os.name == "nt" else "gradlew")
 
-        if not gradlew.exists() and self.require_gradlew:
+        if not gradlew.exists():
+            if self.allow_simulated:
+                return {
+                    "success": True,
+                    "simulated": True,
+                    "exit_code": 0,
+                    "output_tail": f"[Simulated Gradle Environment] Task '{task}' was NOT run (allow_simulated_build).",
+                    "diagnostics": []
+                }
+            # Retrying can't fix a missing wrapper, so mark it fatal
             return {
                 "success": False,
+                "fatal": True,
                 "exit_code": -1,
                 "output_tail": f"gradlew not found in {self.root}",
-                "diagnostics": []
-            }
-
-        # If gradlew doesn't exist, simulate verification for dry-run environments
-        if not gradlew.exists():
-            return {
-                "success": True,
-                "exit_code": 0,
-                "output_tail": f"[Simulated Gradle Environment] Checked task '{task}' successfully (mock).",
                 "diagnostics": []
             }
 

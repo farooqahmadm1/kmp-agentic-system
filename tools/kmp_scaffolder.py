@@ -28,14 +28,14 @@ class KMPProjectScaffolder:
 
         # 2. gradle/libs.versions.toml
         libs_toml = """[versions]
-agp = "8.5.2"
-kotlin = "2.0.21"
-compose-multiplatform = "1.7.0"
-androidx-activityCompose = "1.9.3"
-ktor = "3.0.0"
-koin = "4.0.0"
-coroutines = "1.9.0"
-skie = "0.9.0"
+agp = "8.13.0"
+kotlin = "2.2.21"
+compose-multiplatform = "1.10.2"
+androidx-activityCompose = "1.12.4"
+ktor = "3.3.0"
+koin = "4.1.0"
+coroutines = "1.10.2"
+skie = "0.10.7"  # must support the Kotlin version above
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
@@ -168,12 +168,12 @@ kotlin {{
 
 android {{
     namespace = "{package_name}"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {{
         applicationId = "{package_name}"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }}

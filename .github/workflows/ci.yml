@@ -10,9 +10,12 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      # Keep the other jobs running when one fails, so a single bad runner image doesn't hide results
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # 3.9 dropped: ubuntu-latest (26.04) no longer ships it, and current langgraph needs 3.10+
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Check out repository

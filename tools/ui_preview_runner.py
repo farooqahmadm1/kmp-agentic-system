@@ -23,9 +23,12 @@ class UIPreviewVerifier:
             except Exception:
                 continue
 
+        message = f"Verified {preview_count} Compose Multiplatform UI preview composables."
+        if missing_previews:
+            message += f" Missing @Preview in: {', '.join(missing_previews)}."
         return {
-            "passed": True,
+            "passed": not missing_previews,
             "preview_count": preview_count,
             "missing_previews": missing_previews,
-            "message": f"Verified {preview_count} Compose Multiplatform UI preview composables."
+            "message": message
         }

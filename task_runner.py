@@ -4,6 +4,7 @@ Shared by the CLI (`cli.py new-task`, approvals in the terminal) and the web das
 (`ui/web_dashboard.py`, approvals via buttons). The caller supplies `approve(gate, info)`,
 which blocks until a human decides and returns True/False.
 """
+import re
 import uuid
 from typing import Callable, List, Optional
 
@@ -14,8 +15,18 @@ from memory.trajectory_log import log_event, preview, set_current_node
 Approver = Callable[[str, dict], bool]
 
 
+_TASK_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+
+
 def new_task_id() -> str:
     return f"task-{uuid.uuid4().hex[:8]}"
+
+
+def validate_task_id(tid: str) -> str:
+    """Task ids become directory and branch names (`.worktrees/<id>`, `agent/<id>`), so keep them plain."""
+    if not _TASK_ID.fullmatch(tid or ""):
+        raise ValueError(f"Invalid task id '{tid}': use 1-64 letters, digits, '-' or '_', starting with a letter or digit")
+    return tid
 
 
 def summarize_update(update) -> dict:
@@ -50,11 +61,14 @@ def summarize_update(update) -> dict:
 
 
 def plan_dict(plan) -> dict:
+    from security.dependency_verifier import DependencyVerifier
     return {
         "feature_name": plan.feature_name,
         "architecture_overview": plan.architecture_overview,
         "target_platforms": plan.target_platforms,
         "dependencies": plan.dependencies,
+        # Shown at the plan-approval gate: the guardrail only warns about these, the human decides
+        "dependency_warnings": [msg for ok, msg in map(DependencyVerifier.verify_dependency, plan.dependencies) if not ok],
         "files": [{"path": f.file_path, "source_set": f.source_set, "description": f.description, "kind": kind}
                   for kind, specs in (("domain", plan.shared_contracts), ("ui", plan.ui_screens)) for f in specs]
                  + [{"path": b.expect_declaration.file_path, "source_set": "commonMain",
@@ -78,6 +92,7 @@ def run_task(tid: str, description: str, project_name: str, platforms: Optional[
     from graph import create_kmp_graph
     from tools.worktree_manager import KMPWorktreeManager
 
+    validate_task_id(tid)
     project = config.get_project(project_name or "")
     platforms = platforms or project.get("target_platforms") or config.target_platforms
     log_event(tid, "task_started", description=description, project=project.get("name", ""),
@@ -97,6 +112,8 @@ def run_task(tid: str, description: str, project_name: str, platforms: Optional[
             "iteration_count": 0,
             "max_iterations": config.max_self_healing_iterations,
             "build_status": "pending",
+            "build_simulated": False,
+            "build_fatal": False,
             "fix_notes": "",
             "compiler_diagnostics": []
         }
@@ -151,7 +168,10 @@ def run_task(tid: str, description: str, project_name: str, platforms: Optional[
 
         final = app.get_state(app_config).values
         messages = final.get("messages", [])
-        status = "COMPLETED" if final.get("build_status") == "success" else "FAILED"
+        report = final.get("security_report")
+        ok = (final.get("build_status") == "success" and not final.get("build_simulated")
+              and (report is None or report.passed))
+        status = "COMPLETED" if ok else "FAILED"
         summary = getattr(messages[-1], "content", "") if messages else ""
         log_event(tid, "task_finished", status=status, build_status=final.get("build_status"),
                   iterations=final.get("iteration_count", 0), branch=f"agent/{tid}", summary=summary)

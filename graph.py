@@ -24,10 +24,23 @@ def route_after_gradle(state: KMPGraphState) -> Literal["ui_verify_node", "diagn
 
     if status == "success":
         return "ui_verify_node"
+    elif state.get("build_fatal"):
+        return "finalize_node" # e.g. no gradlew: retrying can't help
     elif iteration < max_iter:
         return "diagnostic_node"
     else:
         return "finalize_node" # Exceeded iterations, finalize/abort
+
+def route_after_guardrail(state: KMPGraphState) -> Literal["file_writer_node", "core_domain_node", "finalize_node"]:
+    """Only guardrail-approved files reach the disk; fixable violations go back to the coders."""
+    report = state.get("security_report")
+    if report is None or report.passed:
+        return "file_writer_node"
+    iteration = state.get("iteration_count", 0)
+    max_iter = state.get("max_iterations", config.max_self_healing_iterations)
+    if report.fixable and iteration < max_iter:
+        return "core_domain_node"
+    return "finalize_node" # Unfixable or out of retries: abort without writing
 
 def create_kmp_graph(checkpointer=None):
     """Assembles the complete cyclic StateGraph for KMP multi-agent development."""
@@ -57,7 +70,15 @@ def create_kmp_graph(checkpointer=None):
     
     # After coder nodes, pass through OWASP guardrail
     workflow.add_edge("native_bridge_node", "guardrail_node")
-    workflow.add_edge("guardrail_node", "file_writer_node")
+    workflow.add_conditional_edges(
+        "guardrail_node",
+        route_after_guardrail,
+        {
+            "file_writer_node": "file_writer_node",
+            "core_domain_node": "core_domain_node",
+            "finalize_node": "finalize_node"
+        }
+    )
     workflow.add_edge("file_writer_node", "gradle_build_node")
 
     # Conditional router after Gradle build

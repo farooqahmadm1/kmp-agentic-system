@@ -59,21 +59,34 @@ class EpisodicMemoryStore:
                     error_category TEXT,
                     root_cause TEXT,
                     resolution_recipe TEXT,
-                    hit_count INTEGER DEFAULT 1
+                    hit_count INTEGER DEFAULT 1,
+                    source TEXT NOT NULL DEFAULT 'learned'
                 )
             """)
-            conn.commit()
 
-            # Seed initial golden recipes if empty
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM error_recipes")
-            if cursor.fetchone()[0] == 0:
-                for sig, cat, cause, recipe in self.SEEDED_RECIPES:
-                    conn.execute("""
-                        INSERT OR IGNORE INTO error_recipes (error_signature, error_category, root_cause, resolution_recipe)
-                        VALUES (?, ?, ?, ?)
-                    """, (sig, cat, cause, recipe))
-                conn.commit()
+            # Migrate databases created before the 'source' column existed. Only rows
+            # that still match a seed exactly are known to be seeded; anything else
+            # may have been rewritten by record_solution, so treat it as learned.
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(error_recipes)")}
+            if "source" not in columns:
+                conn.execute("ALTER TABLE error_recipes ADD COLUMN source TEXT NOT NULL DEFAULT 'learned'")
+                conn.executemany("""
+                    UPDATE error_recipes SET source = 'seed'
+                    WHERE error_signature = ? AND error_category = ? AND root_cause = ? AND resolution_recipe = ?
+                """, self.SEEDED_RECIPES)
+
+            # Sync golden recipes on every init: add missing seeds and refresh seeded
+            # rows edited in code, without touching hit_count or learned recipes.
+            conn.executemany("""
+                INSERT INTO error_recipes (error_signature, error_category, root_cause, resolution_recipe, source)
+                VALUES (?, ?, ?, ?, 'seed')
+                ON CONFLICT(error_signature) DO UPDATE SET
+                    error_category = excluded.error_category,
+                    root_cause = excluded.root_cause,
+                    resolution_recipe = excluded.resolution_recipe
+                WHERE error_recipes.source = 'seed'
+            """, self.SEEDED_RECIPES)
+            conn.commit()
 
     def find_matching_fix(self, error_message: str) -> Optional[Dict[str, Any]]:
         """Queries the episodic memory for a known error signature."""
@@ -104,6 +117,7 @@ class EpisodicMemoryStore:
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(error_signature) DO UPDATE SET
                     resolution_recipe = excluded.resolution_recipe,
-                    hit_count = hit_count + 1
+                    hit_count = hit_count + 1,
+                    source = 'learned'
             """, (error_signature, category, root_cause, recipe))
             conn.commit()

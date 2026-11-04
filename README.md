@@ -162,7 +162,8 @@ graph TD
         UINode --> GuardrailNode
         BridgeNode --> GuardrailNode
         
-        GuardrailNode --> WriteNode[📂 Agent 7: Sandboxed File Writer]
+        GuardrailNode -->|passed| WriteNode[📂 Agent 7: Sandboxed File Writer]
+        GuardrailNode -.->|fixable violations| CoreNode
         WriteNode --> GradleNode[⚙️ Agent 8: Isolated Gradle Build & Check]
         
         GradleNode -->|Build Passed (0 Errors)| UIVerifyNode[🖼️ Agent 9: Headless Compose Preview Test]

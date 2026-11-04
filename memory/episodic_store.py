@@ -44,7 +44,11 @@ class EpisodicMemoryStore:
         )
     ]
 
-    def __init__(self, db_path: str = ".sessions/episodic_memory.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        # Resolve against the configured sessions dir, not the current working directory
+        if db_path is None:
+            from config import config
+            db_path = str(config.sessions_dir / "episodic_memory.db")
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         self.db_path = db_path
         self._init_db()

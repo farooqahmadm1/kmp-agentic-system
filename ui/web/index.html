@@ -360,7 +360,8 @@ function planHTML(p) {
   return `<div class="kv" style="margin:8px 0"><div class="k">Feature</div><div>${esc(p.feature_name)}</div>
     <div class="k">Overview</div><div>${esc(p.architecture_overview)}</div>
     <div class="k">Platforms</div><div>${esc((p.target_platforms || []).join(", "))}</div>
-    ${p.dependencies && p.dependencies.length ? `<div class="k">Dependencies</div><div class="mono">${p.dependencies.map(esc).join("<br>")}</div>` : ""}</div>
+    ${p.dependencies && p.dependencies.length ? `<div class="k">Dependencies</div><div class="mono">${p.dependencies.map(esc).join("<br>")}</div>` : ""}
+    ${p.dependency_warnings && p.dependency_warnings.length ? `<div class="k">⚠️ Review</div><div class="mono">${p.dependency_warnings.map(esc).join("<br>")}</div>` : ""}</div>
     <table><tr><th>File</th><th>Agent</th><th>Source set</th><th>Purpose</th></tr>
     ${p.files.map(f => `<tr><td class="mono">${esc(f.path)}</td><td>${esc(f.kind)}</td><td>${esc(f.source_set)}</td><td>${esc(f.description)}</td></tr>`).join("")}</table>`;
 }

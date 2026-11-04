@@ -5,6 +5,11 @@ from tools.kmp_workspace import KMPWorkspaceManager
 
 def file_writer_node(state: KMPGraphState) -> Dict[str, Any]:
     """Agent 7: Writes validated files directly to the task's isolated Git Worktree."""
+    report = state.get("security_report")
+    if report is None or not report.passed:
+        # Defence in depth: the graph only routes here after the guardrail passes
+        raise RuntimeError("Refusing to write files that have not passed the security guardrail")
+
     workspace_root = state.get("workspace_root", ".")
     files = state.get("files", {})
     ws_manager = KMPWorkspaceManager(workspace_root)

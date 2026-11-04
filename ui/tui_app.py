@@ -93,7 +93,8 @@ if HAS_TEXTUAL:
             self.query_one("#sessions-list", Static).update(sess_text or "No active sessions.")
 
             # Refresh telemetry
-            budget = TokenBudgetManager()
+            budget = TokenBudgetManager(db_path=str(config.sessions_dir / "token_budget.db"),
+                                        daily_token_limit=config.daily_token_limit)
             usage = budget.get_today_usage()
             telemetry_text = f"Cloud Tokens Today: {usage['cloud_tokens_today']:,} / {usage['daily_limit']:,}\n" \
                              f"Estimated Cost: ${usage['total_cost_usd_today']:.4f}\n\n" \

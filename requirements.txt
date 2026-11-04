@@ -1,19 +1,22 @@
+# Lower bounds are the minimum tested APIs; upper bounds stop a new major version from
+# silently breaking installs. Raise them deliberately after testing.
+
 # Core Graph Engine
-langgraph>=0.2.0
-langgraph-checkpoint-sqlite>=2.0.0
-langchain-core>=0.3.0
+langgraph>=0.2.0,<2
+langgraph-checkpoint-sqlite>=2.0.0,<4
+langchain-core>=0.3.0,<2
 
 # Model Provider Adapters
-langchain-ollama>=0.2.0
-langchain-openai>=0.2.0
-langchain-anthropic>=0.2.0
-langchain-google-genai>=2.0.0
+langchain-ollama>=0.2.0,<2
+langchain-openai>=0.2.0,<2
+langchain-anthropic>=0.2.0,<2
+langchain-google-genai>=2.0.0,<5
 
 # Validation & Networking
-pydantic>=2.7.0
-httpx>=0.27.0
-pyyaml>=6.0
+pydantic>=2.7.0,<3
+httpx>=0.27.0,<1
+pyyaml>=6.0,<7
 
 # Terminal UI & Observability
-rich>=13.7.0
-textual>=0.70.0
+rich>=13.7.0,<16
+textual>=0.70.0,<9

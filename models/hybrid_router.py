@@ -18,7 +18,8 @@ class HybridModelRouter:
         self.task_id = task_id
         self.budget_mgr = TokenBudgetManager(
             db_path=str(config.sessions_dir / "token_budget.db"),
-            daily_token_limit=config.daily_token_limit
+            daily_token_limit=config.daily_token_limit,
+            pricing=config.pricing
         )
 
         # 1. Local Ollama Provider (Fallback / Offline)

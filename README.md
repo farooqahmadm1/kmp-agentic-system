@@ -1,7 +1,7 @@
 # 🚀 KMP Agentic System
 
 [![CI Suite](https://github.com/farooqahmadm1/kmp-agentic-system/actions/workflows/ci.yml/badge.svg)](https://github.com/farooqahmadm1/kmp-agentic-system/actions)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![Ollama](https://img.shields.io/badge/Local%20LLM-Ollama-black.svg)](https://ollama.ai)
 [![Claude](https://img.shields.io/badge/Cloud%20LLM-Claude%203.5%20Sonnet-coral.svg)](https://anthropic.com)
@@ -10,7 +10,7 @@
 [![KMP](https://img.shields.io/badge/Kotlin-Multiplatform%202.x-purple.svg)](https://kotlinlang.org/docs/multiplatform.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude 3.5 Sonnet, Gemini 2.0/1.5 Pro, DeepSeek V3/R1)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, equipped with a **Production KMP Scaffolder**, containerized via **Docker**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
+An autonomous, hybrid AI multi-agent software engineering system built on **Lean LangGraph**, combining **Cloud Models (Claude Sonnet/Opus, Gemini Flash/Pro, DeepSeek)** with **Local Ollama** (`qwen2.5-coder:14b` fallback & budget protection), grounded in an AST-based Codebase Knowledge Graph powered by **Graphify (`Graphify-Labs/graphify`)**, fortified with **OWASP Dual-Layer Security Guardrails**, isolated via **Git Worktrees**, equipped with a **Production KMP Scaffolder**, containerized via **Docker**, and persisted with an **Enterprise Session & Time-Travel Engine**, specialized for full-lifecycle **Kotlin Multiplatform (KMP)** and **Compose Multiplatform** development.
 
 ---
 
@@ -30,12 +30,12 @@ If you have a Google Account or Gemini Advanced subscription, you can generate a
    ```yaml
    models:
      cloud_provider: "gemini"
-     gemini_model: "gemini-2.0-flash"  # or "gemini-1.5-pro"
+     gemini_model: "gemini-flash-latest"  # alias for the newest Flash model
    ```
 
 ---
 
-### 2. Anthropic Claude 3.5 Sonnet (Anthropic Console)
+### 2. Anthropic Claude (Anthropic Console)
 If you use Claude Pro or have an Anthropic developer account:
 1. Visit **[https://console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)**.
 2. Click **"Create Key"** and copy your `sk-ant-...` key.
@@ -47,7 +47,7 @@ If you use Claude Pro or have an Anthropic developer account:
    ```yaml
    models:
      cloud_provider: "anthropic"
-     anthropic_model: "claude-3-5-sonnet-latest"
+     anthropic_model: "claude-sonnet-5-5"  # or "claude-opus-5-5"
    ```
 
 ---
@@ -86,16 +86,28 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python cli.py web          # http://127.0.0.1:8765
 ```
 
-- **New task** starts a run on a project from `projects:` in `kmp_agent_config.yaml` (e.g. `smashly`).
+- **New task** starts a run on a project from `projects:` — add your own in `kmp_agent_config.local.yaml`
+  (git-ignored, merged over `kmp_agent_config.yaml`) so personal paths never get committed.
 - **Approve plan / Approve & commit** buttons answer the two human-in-the-loop gates.
 - Every run's steps, model calls (prompt + response), generated files, builds and test failures are kept in
   `.logs/trajectory/<task>.jsonl` and browsable as history.
 - Agents work in a git worktree under `.worktrees/<project>/<task>` on branch `agent/<task>`; nothing is merged into
   your branches — review and merge the branch yourself.
-- The terminal flow still works: `.venv/bin/python cli.py new-task "..." --project smashly`.
+- The terminal flow still works: `.venv/bin/python cli.py new-task "..." --project <name>`.
 - `cloud_provider: "claude_code"` uses your Claude Pro/Max subscription through the logged-in `claude` CLI.
 
 The dashboard has no authentication and only listens on localhost — don't expose it to a network as-is.
+
+### What the guardrails actually enforce
+- **Nothing reaches disk unless the OWASP guardrail passes.** Hardcoded secrets or platform leaks in `commonMain`
+  are sent back to the coder agents as fix notes; a file outside the allowed paths (default: the `composeApp`
+  source sets and Gradle build files, override per project with `allowed_paths`) aborts the task.
+- Dependencies outside the trusted registry are shown as warnings at the plan-approval gate for you to decide.
+- Existing repo files are only read from inside the task worktree and are passed to the model as untrusted data.
+- `daily_token_limit` covers every cloud provider, subscription CLIs included; past it, calls go to local Ollama.
+- A missing `gradlew` fails the build instead of pretending it passed (`allow_simulated_build: true` for dry runs —
+  simulated builds are never merged). Self-hosted mode only auto-merges a real passing build into a clean
+  checkout already on the base branch.
 
 ---
 
@@ -198,7 +210,7 @@ graph TD
 Explore fully functional reference architecture patterns inside the `examples/` directory:
 
 1. **[Biometric Authentication (`expect`/`actual`)](examples/biometric_auth/)**: Full cross-platform implementation using `BiometricPrompt` on Android and Apple's `LocalAuthentication` (`LAContext`) on iOS.
-2. **[OWASP Mobile M1 Secure Storage](examples/secure_storage/)**: Hardware-backed credential encryption using **Android KeyStore** (`EncryptedSharedPreferences`) and **iOS Keychain Services**.
+2. **[OWASP Mobile M1 Secure Storage](examples/secure_storage/)**: Hardware-backed credential encryption using an **Android Keystore** AES-GCM key and **iOS Keychain Services**.
 3. **[Offline-First Ktor 3.x + Room KMP](examples/offline_first_networking/)**: Resilient offline sync pattern with reactive Kotlin Coroutines `StateFlow`.
 
 ---
@@ -229,7 +241,7 @@ make docker-up
 
 ## 🧪 Testing & CI
 
-Continuous Integration is automatically run on every push and PR via GitHub Actions across **Python 3.9, 3.10, 3.11, 3.12** on **Ubuntu & macOS**.
+Continuous Integration is automatically run on every push and PR via GitHub Actions across **Python 3.10, 3.11, 3.12, 3.13** on **Ubuntu & macOS**.
 
 To run locally:
 ```bash

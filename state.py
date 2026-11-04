@@ -41,6 +41,10 @@ class SecurityReport(BaseModel):
     passed: bool
     violations: List[str] = Field(default_factory=list)
     sanitized_items: List[str] = Field(default_factory=list)
+    # False when a violation can't be fixed by regenerating code (e.g. a disallowed file path)
+    fixable: bool = True
+    # Non-blocking findings for the human reviewer (e.g. dependencies outside the trusted registry)
+    warnings: List[str] = Field(default_factory=list)
 
 def merge_file_maps(existing: Dict[str, KMPFileSpec], new_files: Dict[str, KMPFileSpec]) -> Dict[str, KMPFileSpec]:
     """Reducer that merges new/updated files into the working state file map."""
@@ -72,6 +76,8 @@ class KMPGraphState(TypedDict):
     
     # Verification & Compiler Feedback
     build_status: Literal["pending", "success", "failed"]
+    build_simulated: bool # True when no Gradle build actually ran (allow_simulated_build dry runs)
+    build_fatal: bool # True when retrying can't fix the build (e.g. no gradlew)
     build_output_tail: str
     compiler_diagnostics: List[CompilerDiagnostic]
     

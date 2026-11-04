@@ -12,7 +12,7 @@ triggers:
 # OWASP Mobile Security Rules for KMP:
 1. **M1 Secure Storage**:
    - NEVER save authentication tokens, user credentials, or encryption keys in plain `SharedPreferences` (Android) or `NSUserDefaults` (iOS).
-   - Enforce `expect`/`actual` bridges targeting **Android KeyStore** (`EncryptedSharedPreferences`) and **iOS Keychain Services** (`SecItemAdd` / `SecItemCopyMatching`).
+   - Enforce `expect`/`actual` bridges targeting **Android Keystore** (AES-GCM key in `AndroidKeyStore`; `EncryptedSharedPreferences` is deprecated) and **iOS Keychain Services** (`SecItemAdd` / `SecItemCopyMatching`).
 2. **M4 Injection & Serialization**:
    - Use parameterized SQL queries with Room KMP or SQLDelight (never string concatenation in queries).
    - Use safe `kotlinx.serialization` configurations (`ignoreUnknownKeys = true`).

@@ -17,6 +17,8 @@ class GraphifyASTStore:
             return
 
         for kt_file in self.root.glob("**/*.kt"):
+            if "build" in kt_file.relative_to(self.root).parts:  # skip generated sources
+                continue
             try:
                 content = kt_file.read_text(encoding="utf-8")
                 rel_path = str(kt_file.relative_to(self.root))

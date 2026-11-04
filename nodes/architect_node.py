@@ -9,6 +9,7 @@ from models.json_repair import JSONRepair
 from memory.graphify_store import GraphifyASTStore
 from skills.skill_registry import KMPSkillRegistry
 from nodes.project_context import project_overview
+from security.prompt_sanitizer import PromptSanitizer
 
 def architect_node(state: KMPGraphState) -> Dict[str, Any]:
     """Agent 1: Lead Architect decomposes feature request into typed KMPPlan."""
@@ -19,11 +20,12 @@ def architect_node(state: KMPGraphState) -> Dict[str, Any]:
     # 1. Query Graphify AST context
     graphify = GraphifyASTStore(workspace_root)
     graphify.scan_and_index()
-    ast_context = graphify.get_context_subgraph(["App", "MainViewModel", "UserRepository"])
+    # All known expect/actual contracts (capped), so the plan reuses existing platform bridges
+    ast_context = graphify.get_context_subgraph(sorted(graphify.expect_actual_map)[:40])
 
     # 2. Retrieve progressive skills
     skill_registry = KMPSkillRegistry()
-    skill_context = skill_registry.get_skills_for_node("gradle_build_node")
+    skill_context = skill_registry.get_skills_for_node("architect_node")
 
     # 3. Call Hybrid Router
     platforms = state.get("target_platforms") or ["android", "ios", "desktop", "wasmJs"]
@@ -38,7 +40,8 @@ def architect_node(state: KMPGraphState) -> Dict[str, Any]:
             f"Only use source sets for: commonMain, commonTest, {', '.join(p + 'Main' for p in platforms)}."
         )
     router = HybridModelRouter(task_id=task_id)
-    user_prompt = f"Feature Request: {description}\n\n{project_rules}\n\n{ast_context}\n\n{skill_context}"
+    user_prompt = (f"Feature Request:\n{PromptSanitizer.sanitize_user_prompt(description)}\n\n"
+                   f"{project_rules}\n\n{ast_context}\n\n{skill_context}")
     
     messages = [
         SystemMessage(content=ARCHITECT_SYSTEM_PROMPT),

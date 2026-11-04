@@ -9,6 +9,9 @@ venv/
 ENV/
 .venv/
 
+# Per-machine config overrides
+kmp_agent_config.local.yaml
+
 # Sessions & Working Data
 .sessions/
 .worktrees/

@@ -1,19 +1,15 @@
 import unittest
-import os
-import shutil
+import tempfile
 from pathlib import Path
 from tools.kmp_scaffolder import KMPProjectScaffolder
 
 class TestKMPScaffolder(unittest.TestCase):
     def setUp(self):
-        self.test_dir = Path(".test_scaffold_workspace")
-        if self.test_dir.exists():
-            shutil.rmtree(self.test_dir)
-        self.test_dir.mkdir(parents=True, exist_ok=True)
+        self._tmp = tempfile.TemporaryDirectory()
+        self.test_dir = Path(self._tmp.name)
 
     def tearDown(self):
-        if self.test_dir.exists():
-            shutil.rmtree(self.test_dir)
+        self._tmp.cleanup()
 
     def test_scaffold_files_generation(self):
         KMPProjectScaffolder.scaffold(

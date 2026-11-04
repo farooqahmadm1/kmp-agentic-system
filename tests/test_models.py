@@ -1,10 +1,17 @@
 import unittest
-import os
+import tempfile
 from pathlib import Path
 from models.json_repair import JSONRepair
 from models.token_budget import TokenBudgetManager
 
 class TestModels(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
     def test_json_repair_markdown(self):
         raw_markdown = '```json\n{"feature_name": "auth", "target_platforms": ["android", "ios"]}\n```'
         parsed = JSONRepair.parse_or_repair(raw_markdown)
@@ -17,11 +24,7 @@ class TestModels(unittest.TestCase):
         self.assertEqual(len(parsed["dependencies"]), 1)
 
     def test_token_budget_manager(self):
-        test_db = ".sessions/test_budget_unique.db"
-        if os.path.exists(test_db):
-            os.remove(test_db)
-
-        mgr = TokenBudgetManager(db_path=test_db, daily_token_limit=1000)
+        mgr = TokenBudgetManager(db_path=str(self.tmp / "budget.db"), daily_token_limit=1000)
         mgr.record_usage("test-task", "deepseek_cloud", "deepseek-chat", 200, 300)
         stats = mgr.get_today_usage()
         self.assertEqual(stats["total_tokens_today"], 500)
